@@ -1053,7 +1053,7 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
     </div>
     <div class="fg"><label class="fl">Tajuk Pengumuman</label><input type="text" class="fi" id="ann-title-in" placeholder="Cth: Taklimat Keselamatan Bengkel..."></div>
     <div class="fg"><label class="fl">Kandungan / Perincian</label><textarea class="fta" id="ann-content-in" placeholder="Tulis pengumuman di sini..."></textarea></div>
-    <div class="fg"><label class="fl">Pautan Video YouTube (Pilihan)</label><input type="text" class="fi" id="ann-video-in" placeholder="https://www.youtube.com/watch?v=..."></div>
+    <div class="fg"><label class="fl">Pautan Video YouTube (Pilihan) — akan dipaparkan terus dengan audio</label><input type="text" class="fi" id="ann-video-in" placeholder="https://www.youtube.com/watch?v=..."></div>
     <div class="fg"><label class="fl">Pautan Dokumen / Tindakan (Pilihan)</label><input type="text" class="fi" id="ann-link-in" placeholder="https://drive.google.com/..."></div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-ann-form')">Batal</button><button class="btn bp" style="flex:2;" onclick="saveAnnouncement()">💾 Terbitkan Makluman</button></div>
   </div>
@@ -2339,7 +2339,15 @@ async function saveMyProfile() {
   if (i > -1) {
     users[i].phone = ph; users[i].email = email; users[i].avatar = tempMyAvatar;
     DB.set('users', users); CU = users[i]; DB.set('session_s', CU);
-    toast('✅ Profil dikemaskini tempatan!', 'success'); closeM('m-edit-profile'); renderStuDash(); renderProfile();
+
+    toast('Menghantar kemaskini ke Cloud Database...', 'warn');
+    const u = users[i];
+    const payload = { name:u.name, matric:u.matric, progtype:u.progtype, semester:u.semester, class:u.class, phone:u.phone, email:u.email, pass:u.pass, avatar:u.avatar||"" };
+    const res = await cloudPost("addStudent", payload);
+    if(res.status === "error") toast(res.message, 'error');
+    else toast('✅ Profil dikemaskini & disegerakkan!', 'success');
+
+    closeM('m-edit-profile'); renderStuDash(); renderProfile();
   }
 }
 
@@ -2768,7 +2776,12 @@ async function saveStu(){
   const orig=document.getElementById('sf-orig').value,name=document.getElementById('sf-name').value.trim(),mat=document.getElementById('sf-mat').value.trim().toUpperCase(),progtype=document.getElementById('sf-prog').value,sem=document.getElementById('sf-sem').value,cls=document.getElementById('sf-grp').value,ph=document.getElementById('sf-ph').value.trim(),email=document.getElementById('sf-email').value.trim(),pw=document.getElementById('sf-pw').value,pw2=document.getElementById('sf-pw2').value;
   if(!name||!mat||!sem||!cls||!ph)return toast('Sila lengkapkan semua maklumat','error');
   
-  const payload = { name, matric:mat, progtype, semester:sem, class:cls, phone:ph, email, pass: pw||"demo123" };
+  let finalPass = pw || "demo123";
+  if (orig && !pw) {
+    const existing = (DB.get('users')||[]).find(u => u.matric === orig);
+    if (existing && existing.pass) finalPass = existing.pass;
+  }
+  const payload = { name, matric:mat, progtype, semester:sem, class:cls, phone:ph, email, pass: finalPass, avatar: tempSfAvatar||"" };
   toast('Menghantar rekod ke Google Sheets...', 'warn');
   
   const res = await cloudPost("addStudent", payload);
@@ -2776,7 +2789,7 @@ async function saveStu(){
   
   const users=DB.get('users')||[];
   if(orig){ const i=users.findIndex(u => u.matric===orig); if(i>-1) users[i]={...users[i],name,matric:mat,progtype,semester:sem,class:cls,phone:ph,email,avatar:tempSfAvatar}; }
-  else { users.push({name,matric:mat,progtype,semester:sem,class:cls,phone:ph,email,pass:pw,registered:new Date().toISOString(),avatar:tempSfAvatar,behavior:{score:100,tags:[],note:''}}); }
+  else { users.push({name,matric:mat,progtype,semester:sem,class:cls,phone:ph,email,pass:finalPass,registered:new Date().toISOString(),avatar:tempSfAvatar,behavior:{score:100,tags:[],note:''}}); }
   DB.set('users',users);
   
   closeM('m-stu-form'); renderStuList(); refreshAdmDash(); toast('Data Cloud Pelajar Disimpan!', 'success');
@@ -3289,21 +3302,37 @@ async function saveAnnouncement() {
   closeM('m-ann-form'); renderAnnouncements(); toast('Pengumuman Diterbitkan!', 'success');
 }
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null;
+  let id = null;
+  let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+  if (m) id = m[1];
+  if (!id) return null;
+  return `https://www.youtube.com/embed/${id}`;
+}
+
 function renderAnnouncements() {
   const anns = DB.get('announcements') || []; const sorted = [...anns].reverse();
   const stuList = document.getElementById('stu-ann-list');
   if (stuList) {
-    stuList.innerHTML = sorted.map(a => `
+    stuList.innerHTML = sorted.map(a => {
+      const ytEmbed = getYouTubeEmbedUrl(a.video);
+      let videoHtml = '';
+      if (ytEmbed) {
+        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+      } else if (a.video) {
+        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`;
+      }
+      return `
       <div class="ann-card">
         <div class="ann-meta"><span>Oleh: ${a.by}</span><span>${fmtDate(a.date)}</span></div>
         <div class="ann-title">${a.title}</div>
         <div class="ann-body">${a.content}</div>
         ${a.image ? `<img class="ann-img" src="${a.image}">` : ''}
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          ${a.video ? `<a class="ann-vid-btn" href="${a.video}" target="_blank">📺 Video</a>` : ''}
-          ${a.link ? `<a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a>` : ''}
-        </div>
-      </div>`).join('') || '<div class="empty">Tiada makluman.</div>';
+        ${videoHtml}
+        ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
+      </div>`;
+    }).join('') || '<div class="empty">Tiada makluman.</div>';
   }
   const admList = document.getElementById('adm-ann-list');
   if (admList) {
