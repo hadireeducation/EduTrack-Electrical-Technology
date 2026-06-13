@@ -15,7 +15,7 @@
 <title>EduTrack — Teknologi Elektrik (Enhanced Cloud Pro)</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{
   --bg:#030914;--bg2:#0a122c;--bg3:#0f1c3f;
@@ -27,7 +27,7 @@
   --adm:#f59e0b;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden;
+body{background:var(--bg);color:var(--text);font-family:var(--app-font,'Syne'),sans-serif;min-height:100vh;overflow-x:hidden;
   background-size: cover; background-position: center; background-attachment: fixed; transition: background 0.5s ease;}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background:radial-gradient(ellipse 70% 50% at 10% 0%,rgba(0,240,255,0.07) 0%,transparent 55%),
@@ -67,7 +67,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   text-transform:uppercase;color:var(--t2);margin-bottom:6px;}
 .fi,.fs,.fta{width:100%;padding:10px 13px;background:rgba(255,255,255,0.04);
   border:1px solid var(--bdr);border-radius:10px;color:var(--text);
-  font-family:'Syne',sans-serif;font-size:14px;outline:none;
+  font-family:var(--app-font,'Syne'),sans-serif;font-size:14px;outline:none;
   transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;}
 .fta{resize:vertical;min-height:76px;}
 .fi:focus,.fs:focus,.fta:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(0,240,255,0.15);}
@@ -75,7 +75,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
   padding:10px 18px;border-radius:10px;border:none;cursor:pointer;
-  font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
+  font-family:var(--app-font,'Syne'),sans-serif;font-size:13px;font-weight:700;
   letter-spacing:0.3px;transition:all .18s;white-space:nowrap;}
 .btn:active{transform:scale(.96);}
 .bp{background:linear-gradient(135deg,var(--ac),#00b4d8);color:#000;box-shadow:0 4px 16px rgba(0,240,255,0.22);text-shadow:0 0 1px rgba(0,0,0,0.1); transition: all 0.3s ease;}
@@ -96,7 +96,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .hero p{color:var(--t2);font-size:13px;line-height:1.6;margin-bottom:20px;}
 .tabs{display:flex;gap:3px;background:rgba(255,255,255,0.04);border-radius:12px;padding:3px;margin-bottom:14px;}
 .tab{flex:1;padding:8px 4px;border:none;border-radius:8px;background:transparent;
-  color:var(--t2);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;
+  color:var(--t2);font-family:var(--app-font,'Syne'),sans-serif;font-size:11px;font-weight:700;
   cursor:pointer;transition:all .2s;white-space:nowrap;}
 .tab.active{background:var(--ac);color:#000;box-shadow:0 2px 10px rgba(0,240,255,0.25);}
 .tab.atab.active{background:var(--adm);color:#000;box-shadow:0 2px 10px rgba(245,158,11,0.25);}
@@ -233,7 +233,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .report-stu-info { flex:1; min-width:0; }
 .report-stu-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .report-stu-mat { font-size:10px; color:var(--ac); font-family:'Space Mono',monospace; }
-.report-note-area { width:100%; padding:7px 9px; font-size:11px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:var(--text); font-family:'Syne',sans-serif; resize:none; outline:none; min-height:52px; margin-top:6px; transition:border-color 0.2s; }
+.report-note-area { width:100%; padding:7px 9px; font-size:11px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:var(--text); font-family:var(--app-font,'Syne'),sans-serif; resize:none; outline:none; min-height:52px; margin-top:6px; transition:border-color 0.2s; }
 .report-note-area:focus { border-color:var(--ac); }
 .report-status-badge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
 .rs-hadir { background:rgba(16,185,129,0.15); color:var(--a3); }
@@ -245,7 +245,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .report-stu-info { flex:1; min-width:0; }
 .report-stu-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .report-stu-mat { font-size:10px; color:var(--ac); font-family:'Space Mono',monospace; }
-.report-note-area { width:100%; padding:7px 9px; font-size:11px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:var(--text); font-family:'Syne',sans-serif; resize:none; outline:none; min-height:52px; margin-top:6px; transition:border-color 0.2s; }
+.report-note-area { width:100%; padding:7px 9px; font-size:11px; border-radius:8px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:var(--text); font-family:var(--app-font,'Syne'),sans-serif; resize:none; outline:none; min-height:52px; margin-top:6px; transition:border-color 0.2s; }
 .report-note-area:focus { border-color:var(--ac); }
 .report-status-badge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:10px; white-space:nowrap; flex-shrink:0; }
 .rs-hadir { background:rgba(16,185,129,0.15); color:var(--a3); }
@@ -274,6 +274,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 
 body.mode-pemantau .pemantau-hidden { display: none !important; }
 body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity: 0.6 !important; }
+.pemantau-only { display: none !important; }
+body.mode-pemantau .pemantau-only { display: block !important; }
 
 .chart-container {
   display: flex;
@@ -434,10 +436,6 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
       <div class="fg"><label class="fl">Kata Laluan</label><input type="password" class="fi" id="l-pw" placeholder="••••••••"></div>
       <button class="btn bp btn-full" style="margin-top:4px;" onclick="doLogin()">Log Masuk →</button>
     </div>
-    <div class="card" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.04);">
-      <div style="font-size:11px;color:var(--warn);font-weight:700;margin-bottom:5px;">💡 DEMO PELAJAR</div>
-      <div style="font-size:12px;color:var(--t2);line-height:1.8;">Matrik: <code style="color:var(--ac);font-family:'Space Mono',monospace;">ET2401001</code><br>Kata laluan: <code style="color:var(--ac);font-family:'Space Mono',monospace;">demo123</code></div>
-    </div>
   </div>
   <div id="af-admin" class="hidden">
     <div class="card" style="border-color:rgba(245,158,11,0.25);">
@@ -445,18 +443,6 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
       <div class="fg"><label class="fl">Nama Pengguna</label><input type="text" class="fi" id="a-user" placeholder="admin / pemantau" autocomplete="off"></div>
       <div class="fg"><label class="fl">Kata Laluan</label><input type="password" class="fi" id="a-pw" placeholder="••••••••"></div>
       <button class="btn ba btn-full" style="margin-top:4px;" onclick="doAdminLogin()">Masuk Portal →</button>
-    </div>
-    <div class="card" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.04);">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <div style="font-size:11px;color:var(--adm);font-weight:700;margin-bottom:5px;">🛡️ DEMO ADMIN</div>
-          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin</code><br>Katalaluan: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin123</code></div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:#a78bfa;font-weight:700;margin-bottom:5px;">👁️ DEMO PEMANTAU</div>
-          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau</code><br>Katalaluan: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau123</code></div>
-        </div>
-      </div>
     </div>
   </div>
   <div style="height:20px;"></div>
@@ -496,8 +482,8 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
     </div>
 
     <div class="card" style="border-color: rgba(139,92,246,0.3); margin-top: 12px;">
-      <div class="card-hdr" style="color: #a78bfa;">📢 Makluman & Pengumuman Jabatan</div>
-      <div id="stu-ann-list" style="max-height: 250px; overflow-y: auto;"></div>
+      <div class="card-hdr" style="color: #a78bfa;">📊 Dashboard Informasi & Pengumuman Program</div>
+      <div id="stu-ann-list" style="max-height: 600px; overflow-y: auto;"></div>
     </div>
 
     <div class="sgrid">
@@ -535,6 +521,12 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
       <div class="card-hdr" style="justify-content:center;">QR Code Saya</div>
       <div id="qr-mini" style="display:flex;justify-content:center;margin-bottom:10px;"></div>
       <button class="btn bs btn-full mt8" onclick="sScreen('qr')">Lihat QR Penuh →</button>
+    </div>
+    <div class="card" style="padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--t2);">
+        <span>👣 Pelawat Hari Ini: <strong style="color:var(--ac);" id="stu-vc-today">—</strong></span>
+        <span>Jumlah Pelawat: <strong style="color:var(--a3);" id="stu-vc-total">—</strong></span>
+      </div>
     </div>
     <div style="height:70px;"></div>
   </div>
@@ -641,7 +633,7 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
   <div id="ss-prof" class="screen">
     <div class="card">
       <div style="display:flex;align-items:center;gap:13px;margin-bottom:14px;">
-        <div class="avlg" id="prof-av"></div>
+        <div class="avlg" id="prof-av" onclick="openImgLightbox(this.querySelector('img')&&this.querySelector('img').src)" style="cursor:pointer;"></div>
         <div><div style="font-size:18px;font-weight:800;" id="prof-name"></div>
           <div style="font-family:'Space Mono',monospace;color:var(--ac);font-size:11px;" id="prof-mat"></div></div>
       </div>
@@ -705,6 +697,24 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
       <div class="custom-logo-display" style="width:50px; height:50px; border-radius:10px; overflow:hidden; flex-shrink:0;"></div>
     </div>
 
+    <div class="card pemantau-hidden" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.04);">
+      <div class="card-hdr" style="color:var(--adm);">🔑 Maklumat Akaun Demo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--warn);font-weight:700;margin-bottom:5px;">💡 DEMO PELAJAR</div>
+          <div style="font-size:11px;color:var(--t2);line-height:1.6;">Matrik: <code style="color:var(--ac);font-family:'Space Mono',monospace;">ET2401001</code><br>Kata laluan: <code style="color:var(--ac);font-family:'Space Mono',monospace;">demo123</code></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--adm);font-weight:700;margin-bottom:5px;">🛡️ DEMO ADMIN</div>
+          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin</code><br>Katalaluan: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin123</code></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#a78bfa;font-weight:700;margin-bottom:5px;">👁️ DEMO PEMANTAU</div>
+          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau</code><br>Katalaluan: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau123</code></div>
+        </div>
+      </div>
+    </div>
+
     <div class="sgrid">
       <div class="scard"><div class="snum cc" id="ad-stu">—</div><div class="slbl">Pelajar</div></div>
       <div class="scard"><div class="snum cp" id="ad-act">—</div><div class="slbl">Aktiviti</div></div>
@@ -714,10 +724,10 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
 
     <div class="card" style="border-color: rgba(139,92,246,0.3);">
       <div class="card-hdr" style="color: #a78bfa;">
-        <span>📢 Papan Pengumuman Jabatan</span>
+        <span>📊 Dashboard Informasi & Pengumuman Program</span>
         <button class="btn ba btn-sm pemantau-hidden" style="background: var(--a2); color: #fff;" onclick="openAddAnn()">➕ Tambah</button>
       </div>
-      <div id="adm-ann-list" style="max-height: 250px; overflow-y: auto;"></div>
+      <div id="adm-ann-list" style="max-height: 600px; overflow-y: auto;"></div>
     </div>
 
     <div class="card">
@@ -753,6 +763,26 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
         <button class="btn bs btn-full" onclick="exportCSVLocal()">💾 Muat Turun CSV Lokal</button>
       </div>
     </div>
+
+    <!-- Compact visitor stat for Pemantau -->
+    <div class="card pemantau-only" style="padding:10px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--t2);">
+        <span>👣 Pelawat Hari Ini: <strong style="color:var(--ac);" id="vc-today-pemantau">—</strong></span>
+        <span>Jumlah Pelawat: <strong style="color:var(--a3);" id="vc-total-pemantau">—</strong></span>
+      </div>
+    </div>
+
+    <!-- Full visitor log for Admin -->
+    <div class="card pemantau-hidden">
+      <div class="card-hdr">👣 Statistik Pelawat Sistem</div>
+      <div class="sgrid" style="margin-bottom:10px;">
+        <div class="scard"><div class="snum cc" id="vc-today">—</div><div class="slbl">Pelawat Hari Ini</div></div>
+        <div class="scard"><div class="snum cg" id="vc-total">—</div><div class="slbl">Jumlah Pelawat Keseluruhan</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:6px;">Log Masuk Terkini — Pelajar, Masa & Aktiviti</div>
+      <div id="visitor-log-list" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+
     <div style="height:20px;"></div>
   </div>
 
@@ -878,6 +908,37 @@ body.mode-pemantau .pemantau-disabled { pointer-events: none !important; opacity
         </div>
       </div>
       
+      <div class="fg" style="margin-bottom:12px;">
+        <label class="fl">Warna Latar Kotak/Kad (Card)</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="color" id="theme-card-picker" style="width:36px; height:36px; border:none; border-radius:6px; background:none; cursor:pointer;" onchange="updateCustomTheme()">
+          <input type="text" id="theme-card-hex" class="fi" style="font-family:'Space Mono'; text-transform:uppercase; padding:6px 8px; font-size:12px;" placeholder="#0a122c" readonly>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-bottom:12px;">
+        <label class="fl">Jenis Tulisan (Font) Sistem</label>
+        <select class="fs" id="theme-font-select" onchange="updateCustomFont()">
+          <option value="'Syne',sans-serif">Syne (Asal)</option>
+          <option value="'Space Mono',monospace">Space Mono</option>
+          <option value="Arial,sans-serif">Arial</option>
+          <option value="'Times New Roman',serif">Times New Roman</option>
+          <option value="Georgia,serif">Georgia</option>
+          <option value="'Courier New',monospace">Courier New</option>
+          <option value="Verdana,sans-serif">Verdana</option>
+          <option value="'Trebuchet MS',sans-serif">Trebuchet MS</option>
+        </select>
+      </div>
+
+      <div class="fg" style="margin-bottom:12px;">
+        <label class="fl">Saiz Tulisan Keseluruhan Sistem</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="range" id="theme-fontsize-slider" min="80" max="130" step="5" value="100" oninput="updateFontSizeLabel(this.value); updateCustomFontSize()" style="flex:1;">
+          <span id="theme-fontsize-label" style="font-family:'Space Mono';font-size:12px;color:var(--ac);min-width:42px;text-align:right;">100%</span>
+        </div>
+        <div style="font-size:10px;color:var(--t2);margin-top:4px;">Kecil ↔ Besar — terpakai pada semua dashboard & modul.</div>
+      </div>
+
       <button class="btn bp btn-full" onclick="saveActiveTheme()">💾 Simpan & Tetapkan Warna</button>
     </div>
 
@@ -1199,7 +1260,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbyRAx3bAFljEpw2o2sl46X1Ze7FU5nyWApDva1JSvdNit2spG1QjaSR2fIJyY1rdOey/exec";
+let API_URL = DB.get('cloud_api_url') || "";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1207,7 +1268,10 @@ const defaultTheme = {
   secondary: '#8b5cf6',
   bg: '#030914',
   bg2: '#0a122c',
-  bg3: '#0f1c3f'
+  bg3: '#0f1c3f',
+  card: 'rgba(10,18,44,0.92)',
+  font: "'Syne',sans-serif",
+  fontSize: 100
 };
 let activeTheme = DB.get('app_theme') || defaultTheme;
 
@@ -1283,20 +1347,59 @@ function applyTheme(theme) {
   root.style.setProperty('--bg2', theme.bg2);
   root.style.setProperty('--bg3', theme.bg3);
   root.style.setProperty('--bdr', hexToRgbA(theme.accent, 0.15));
-  
+  if (theme.card) root.style.setProperty('--card', theme.card);
+  if (theme.font) root.style.setProperty('--app-font', theme.font);
+  document.body.style.zoom = ((theme.fontSize || 100) / 100);
+
   const pickerAcc = document.getElementById('theme-accent-picker');
   const pickerSec = document.getElementById('theme-secondary-picker');
   const txtAcc = document.getElementById('theme-accent-hex');
   const txtSec = document.getElementById('theme-secondary-hex');
-  
+  const pickerCard = document.getElementById('theme-card-picker');
+  const txtCard = document.getElementById('theme-card-hex');
+  const fontSel = document.getElementById('theme-font-select');
+  const fontSizeSlider = document.getElementById('theme-fontsize-slider');
+  const fontSizeLbl = document.getElementById('theme-fontsize-label');
+
   if (pickerAcc) pickerAcc.value = theme.accent;
   if (pickerSec) pickerSec.value = theme.secondary;
   if (txtAcc) txtAcc.value = theme.accent;
   if (txtSec) txtSec.value = theme.secondary;
+  if (fontSel && theme.font) fontSel.value = theme.font;
+  if (fontSizeSlider && theme.fontSize) fontSizeSlider.value = theme.fontSize;
+  if (fontSizeLbl) fontSizeLbl.textContent = (theme.fontSize || 100) + '%';
+  if (theme.card) {
+    const cardHex = theme.card.startsWith('rgba') ? rgbaToHex(theme.card) : theme.card;
+    if (pickerCard) pickerCard.value = cardHex;
+    if (txtCard) txtCard.value = cardHex;
+  }
 }
 
-function setThemePreset(acc, sec, bg, bg2, bg3) {
-  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3 };
+function updateCustomFont() {
+  const fontSel = document.getElementById('theme-font-select');
+  activeTheme.font = fontSel.value;
+  applyTheme(activeTheme);
+}
+
+function updateFontSizeLabel(val) {
+  const lbl = document.getElementById('theme-fontsize-label');
+  if (lbl) lbl.textContent = val + '%';
+}
+
+function updateCustomFontSize() {
+  const slider = document.getElementById('theme-fontsize-slider');
+  activeTheme.fontSize = parseInt(slider.value, 10);
+  applyTheme(activeTheme);
+}
+
+function rgbaToHex(rgba) {
+  const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return '#0a122c';
+  return '#' + [1,2,3].map(i => parseInt(m[i]).toString(16).padStart(2,'0')).join('');
+}
+
+function setThemePreset(acc, sec, bg, bg2, bg3, card) {
+  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card || hexToRgbA(bg2, 0.92), font: activeTheme.font, fontSize: activeTheme.fontSize };
   applyTheme(activeTheme);
   toast('Tema pratetap dipilih! Sila simpan untuk tetapan kekal.', 'warn');
 }
@@ -1304,11 +1407,13 @@ function setThemePreset(acc, sec, bg, bg2, bg3) {
 function updateCustomTheme() {
   const acc = document.getElementById('theme-accent-picker').value;
   const sec = document.getElementById('theme-secondary-picker').value;
+  const cardPicker = document.getElementById('theme-card-picker');
   const bg = '#02070e';
   const bg2 = hexToRgbA(acc, 0.04);
   const bg3 = hexToRgbA(acc, 0.08);
+  const card = cardPicker && cardPicker.value ? hexToRgbA(cardPicker.value, 0.92) : (activeTheme.card || 'rgba(10,18,44,0.92)');
 
-  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3 };
+  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card, font: activeTheme.font, fontSize: activeTheme.fontSize };
   applyTheme(activeTheme);
 }
 
@@ -1855,7 +1960,28 @@ async function doLogin(){
   const sessionKey = 'stu_' + mat;
   const ok = await acquireSession(sessionKey, 'student');
   if (!ok) return toast('Log masuk dibatalkan.', 'warn');
-  CU=u; DB.set('session_s',u); enterStudent();
+  CU=u; DB.set('session_s',u); logVisit(u); enterStudent();
+}
+
+function logVisit(u, roleLabel) {
+  try {
+    let activityLabel = roleLabel;
+    if (!activityLabel) {
+      const acts = DB.get('activities') || [];
+      const activeAct = acts.find(a => a.status === 'Aktif');
+      activityLabel = activeAct ? activeAct.name : '—';
+    }
+    const now = new Date();
+    const entry = {
+      matric: u.matric,
+      name: u.name,
+      time: now.toISOString(),
+      activity: activityLabel
+    };
+    const visits = DB.get('visitor_log') || [];
+    visits.push(entry);
+    DB.set('visitor_log', visits);
+  } catch(e) {}
 }
 
 async function doAdminLogin(){
@@ -1874,6 +2000,7 @@ async function doAdminLogin(){
     // Admin Utama — tiada sekatan sesi (boleh akses dari mana-mana)
     ADMIN=true; PEMANTAU=false; IS_MAIN_ADMIN=true; IS_SUB_ADMIN=false;
     DB.set('session_a',true); DB.set('session_p',false); DB.set('session_role','main_admin');
+    logVisit({matric:'ADMIN', name:'Admin Utama (' + u + ')'}, 'Admin');
     enterAdmin();
   } else if(matchedSubAdmin) {
     // Admin Tambahan — amaran jika sesi aktif
@@ -1881,6 +2008,7 @@ async function doAdminLogin(){
     if (!ok) return toast('Log masuk dibatalkan.', 'warn');
     ADMIN=true; PEMANTAU=false; IS_MAIN_ADMIN=false; IS_SUB_ADMIN=true;
     DB.set('session_a',true); DB.set('session_p',false); DB.set('session_role','sub_admin'); DB.set('session_lock_key','adm_' + matchedSubAdmin.user);
+    logVisit({matric:'SUBADM', name:'Sub-Admin (' + matchedSubAdmin.user + ')'}, 'Admin');
     enterAdmin();
   } else if(matchedPemantau){
     // Pemantau — amaran jika sesi aktif
@@ -1888,6 +2016,7 @@ async function doAdminLogin(){
     if (!ok) return toast('Log masuk dibatalkan.', 'warn');
     ADMIN=false; PEMANTAU=true; IS_MAIN_ADMIN=false; IS_SUB_ADMIN=false;
     DB.set('session_a',false); DB.set('session_p',true); DB.set('session_role','pemantau'); DB.set('session_lock_key','pem_' + matchedPemantau.user);
+    logVisit({matric:'PEMANTAU', name:'Pemantau (' + matchedPemantau.user + ')'}, 'Pemantau');
     enterAdmin();
   } else {
     playToneFeedback('error');
@@ -1967,6 +2096,7 @@ function setAvatarElement(elId, name, avatarUrl) {
 
 function renderStuDash(){
   if(!CU)return;
+  renderVisitorStats();
   const freshU=(DB.get('users')||[]).find(u=>u.matric===CU.matric);
   if(freshU)CU=freshU;
   document.getElementById('sn-name').textContent=CU.name.split(' ')[0];
@@ -2356,12 +2486,12 @@ function handleAvatarUpload(file, callback) {
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      const canvas = document.createElement('canvas'); const MAX_WIDTH = 110, MAX_HEIGHT = 110;
+      const canvas = document.createElement('canvas'); const MAX_WIDTH = 1200, MAX_HEIGHT = 1200;
       let width = img.width, height = img.height;
       if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } }
       else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
       canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-      callback(canvas.toDataURL('image/jpeg', 0.65));
+      callback(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.src = e.target.result;
   };
@@ -2416,7 +2546,30 @@ function refreshAdmDash(){
   document.getElementById('ad-top-stu').innerHTML=ranked.length?ranked.map((u,i)=>`<div class="li"><div style="width:20px;font-size:13px;font-weight:800;color:var(--ac);">${i+1}</div><div class="linfo"><div class="ltitle">${u.name}</div><div class="lsub">${u.matric}</div></div><span style="font-size:13px;font-weight:800;">${u.pct}%</span></div>`).join(''):'<div class="empty">Tiada data pelajar</div>';
   
   document.getElementById('ad-att-prog').innerHTML=acts.length?[...acts].reverse().slice(0,5).map(a=>{const ua=atts.filter(x=>x.actId===a.id),p=ua.filter(x=>x.status==='present').length,pct=ua.length?Math.round(p/ua.length*100):0,fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;font-size:11px;">${a.name}</span><span>${p}/${ua.length} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada aktiviti</div>';
-  renderAdminWeeklyChart(); renderAnnouncements();
+  renderAdminWeeklyChart(); renderAnnouncements(); renderVisitorStats();
+}
+
+function renderVisitorStats() {
+  const visits = DB.get('visitor_log') || [];
+  const todayStr = new Date().toISOString().slice(0,10);
+  const todayCount = visits.filter(v => v.time.slice(0,10) === todayStr).length;
+
+  const elToday = document.getElementById('vc-today'); if (elToday) elToday.textContent = todayCount;
+  const elTotal = document.getElementById('vc-total'); if (elTotal) elTotal.textContent = visits.length;
+  const elPemToday = document.getElementById('vc-today-pemantau'); if (elPemToday) elPemToday.textContent = todayCount;
+  const elPemTotal = document.getElementById('vc-total-pemantau'); if (elPemTotal) elPemTotal.textContent = visits.length;
+  const elStuToday = document.getElementById('stu-vc-today'); if (elStuToday) elStuToday.textContent = todayCount;
+  const elStuTotal = document.getElementById('stu-vc-total'); if (elStuTotal) elStuTotal.textContent = visits.length;
+
+  const listEl = document.getElementById('visitor-log-list');
+  if (!listEl) return;
+  const recent = [...visits].reverse().slice(0, 30);
+  listEl.innerHTML = recent.length ? recent.map(v => {
+    const d = new Date(v.time);
+    const dateStr = d.toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric'});
+    const timeStr = d.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
+    return `<div class="li"><div class="linfo"><div class="ltitle">${v.name}</div><div class="lsub">${v.matric} · ${dateStr} ${timeStr} · 📌 ${v.activity}</div></div></div>`;
+  }).join('') : '<div class="empty">Tiada rekod pelawat lagi.</div>';
 }
 
 async function generateSessionPin(actId) {
@@ -2804,7 +2957,7 @@ function renderStuList(){
   if(!users.length){ el.innerHTML='<div class="empty">Tiada pelajar ditemui.</div>'; return; }
   el.innerHTML=users.map(u=>{
     const ua=atts.filter(a=>a.matric===u.matric),p=ua.filter(a=>a.status==='present').length,pct=ua.length?Math.round(p/ua.length*100):0,fc=pct>=80?'pfg':pct>=60?'pfw':'pfd',col=pct>=80?'var(--a3)':pct>=60?'var(--warn)':'var(--danger)';
-    const avImg = u.avatar ? `<img src="${u.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">` : initials(u.name);
+    const avImg = u.avatar ? `<img src="${u.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;cursor:zoom-in;" onclick="event.stopPropagation();openImgLightbox('${u.avatar}')">` : initials(u.name);
     return`<div class="stucard"><div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;"><div class="stuav">${avImg}</div><div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.name}</div><div style="font-size:11px;color:var(--ac);font-family:'Space Mono';">${u.matric} · ${u.class}</div></div><span style="font-size:13px;font-weight:800;color:${col};">${pct}%</span></div><div class="pbar" style="margin-bottom:5px;"><div class="pfill ${fc}" style="width:${pct}%"></div></div><div style="font-size:10px;color:var(--t2);margin-bottom:8px;">${p}/${ua.length} Sesi · Sahsiah: ${u.behavior?.score??100}/100</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><button class="btn bs btn-sm" style="flex:1;" onclick="viewStu('${u.matric}')">👁 Urus</button><button class="btn ba btn-sm pemantau-hidden" style="flex:1;" onclick="openEditStu('${u.matric}')">✏️ Edit</button><button class="btn bs btn-sm" style="flex:1;" onclick="openBeh('${u.matric}')">📋 Sahsiah</button><button class="btn bd btn-sm pemantau-hidden" onclick="delStu('${u.matric}')">🗑</button></div></div>`;
   }).join('');
 }
@@ -2812,7 +2965,7 @@ function renderStuList(){
 function viewStu(mat){
   const u=(DB.get('users')||[]).find(x=>x.matric===mat); if(!u)return;
   const atts=(DB.get('attendance')||[]).filter(a=>a.matric===mat),p=atts.filter(a=>a.status==='present').length,pct=atts.length?Math.round(p/atts.length*100):0,col=pct>=80?'var(--a3)':pct>=60?'var(--warn)':'var(--danger)',beh=u.behavior||{};
-  const avImg = u.avatar ? `<img src="${u.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">` : initials(u.name);
+  const avImg = u.avatar ? `<img src="${u.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;cursor:zoom-in;" onclick="event.stopPropagation();openImgLightbox('${u.avatar}')">` : initials(u.name);
   const acts = DB.get('activities') || [];
   const reports = DB.get('act_reports') || {};
   const stuReports = acts.map(a => ({ act: a, note: (reports[a.id] || {})[mat] || '' })).filter(x => x.note);
@@ -3319,7 +3472,7 @@ function renderAnnouncements() {
       const ytEmbed = getYouTubeEmbedUrl(a.video);
       let videoHtml = '';
       if (ytEmbed) {
-        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
       } else if (a.video) {
         videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`;
       }
@@ -3328,7 +3481,7 @@ function renderAnnouncements() {
         <div class="ann-meta"><span>Oleh: ${a.by}</span><span>${fmtDate(a.date)}</span></div>
         <div class="ann-title">${a.title}</div>
         <div class="ann-body">${a.content}</div>
-        ${a.image ? `<img class="ann-img" src="${a.image}">` : ''}
+        ${a.image ? `<img class="ann-img" src="${a.image}" onclick="openImgLightbox('${a.image}')" style="cursor:zoom-in;">` : ''}
         ${videoHtml}
         ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
       </div>`;
@@ -3336,13 +3489,27 @@ function renderAnnouncements() {
   }
   const admList = document.getElementById('adm-ann-list');
   if (admList) {
-    admList.innerHTML = sorted.map(a => `
+    admList.innerHTML = sorted.map(a => {
+      const ytEmbed = getYouTubeEmbedUrl(a.video);
+      let videoHtml = '';
+      if (ytEmbed) {
+        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
+      } else if (a.video) {
+        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`;
+      }
+      return `
       <div class="ann-card">
-        <div class="ann-title" style="font-size:12px;">${a.title}</div>
-        <div style="display:flex; gap:6px; margin-top:6px;">
-          <button class="btn bd btn-sm" style="padding:4px 8px; font-size:10px;" onclick="delAnn('${a.id}')"> Padam</button>
+        <div class="ann-meta"><span>Oleh: ${a.by}</span><span>${fmtDate(a.date)}</span></div>
+        <div class="ann-title">${a.title}</div>
+        <div class="ann-body">${a.content}</div>
+        ${a.image ? `<img class="ann-img" src="${a.image}" onclick="openImgLightbox('${a.image}')" style="cursor:zoom-in;">` : ''}
+        ${videoHtml}
+        ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="btn bd btn-sm pemantau-hidden" style="padding:4px 8px; font-size:10px;" onclick="delAnn('${a.id}')"> Padam</button>
         </div>
-      </div>`).join('') || '<div class="empty">Tiada makluman.</div>';
+      </div>`;
+    }).join('') || '<div class="empty">Tiada makluman.</div>';
   }
 }
 function delAnn(id) { if (guardWrite('announcements')) return; let anns = DB.get('announcements') || []; anns = anns.filter(a => a.id !== id); DB.set('announcements', anns); cloudPost("deleteAnnouncement",{id}).catch(()=>{}); renderAnnouncements(); }
@@ -3495,8 +3662,19 @@ let _autoSyncInterval = setInterval(() => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && API_URL) syncAllCloud(true).catch(()=>{});
 });
-
+function openImgLightbox(src) {
+  if (!src) return;
+  document.getElementById('img-lightbox-img').src = src;
+  document.getElementById('img-lightbox').style.display = 'flex';
+}
+function closeImgLightbox() {
+  document.getElementById('img-lightbox').style.display = 'none';
+  document.getElementById('img-lightbox-img').src = '';
+}
 </script>
+<div id="img-lightbox" onclick="closeImgLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:99999;align-items:center;justify-content:center;cursor:zoom-out;">
+  <img id="img-lightbox-img" src="" style="max-width:85vw;max-height:85vh;width:auto;height:auto;border-radius:8px;object-fit:contain;image-rendering:auto;">
+</div>
 </body>
 </html>
 
