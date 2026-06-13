@@ -208,6 +208,12 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .nr{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);color:var(--danger);}
 .np{background:rgba(139,92,246,0.07);border:1px solid rgba(139,92,246,0.2);color:#a78bfa;}
 .gdbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;font-size:11px;font-weight:700;margin-bottom:12px;}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:rgba(255,255,255,0.15);transition:.2s;border-radius:24px;}
+.switch .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background-color:#fff;transition:.2s;border-radius:50%;}
+.switch input:checked + .slider{background-color:var(--ac);}
+.switch input:checked + .slider:before{transform:translateX(20px);}
 .gd-ok{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--a3);}
 .gd-err{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:var(--danger);}
 .gd-warn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:var(--warn);}
@@ -306,7 +312,7 @@ body.mode-pemantau .pemantau-only { display: block !important; }
 .ann-meta { display: flex; justify-content: space-between; font-size: 9px; color: var(--t2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
 .ann-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
 .ann-body { font-size: 11.5px; color: var(--t2); line-height: 1.5; margin-bottom: 8px; word-break: break-word; }
-.ann-img { width: 100%; border-radius: 8px; margin-bottom: 8px; max-height: 160px; object-fit: cover; }
+.ann-img { width: 100%; border-radius: 8px; margin-bottom: 8px; max-height: 360px; object-fit: contain; background:rgba(255,255,255,0.03); cursor: zoom-in; }
 .ann-vid-btn { display: inline-flex; align-items: center; gap: 5px; color: var(--danger); font-size: 10px; font-weight: 700; text-decoration: none; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 6px; margin-right: 5px; }
 .ann-link-btn { display: inline-flex; align-items: center; gap: 5px; color: var(--ac); font-size: 10px; font-weight: 700; text-decoration: none; background: rgba(0, 240, 255, 0.1); padding: 4px 8px; border-radius: 6px; }
 
@@ -698,21 +704,9 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     </div>
 
     <div class="card pemantau-hidden" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.04);">
-      <div class="card-hdr" style="color:var(--adm);">🔑 Maklumat Akaun Demo</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-        <div>
-          <div style="font-size:11px;color:var(--warn);font-weight:700;margin-bottom:5px;">💡 DEMO PELAJAR</div>
-          <div style="font-size:11px;color:var(--t2);line-height:1.6;">Matrik: <code style="color:var(--ac);font-family:'Space Mono',monospace;">ET2401001</code><br>Kata laluan: <code style="color:var(--ac);font-family:'Space Mono',monospace;">demo123</code></div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--adm);font-weight:700;margin-bottom:5px;">🛡️ DEMO ADMIN</div>
-          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin</code><br>Katalaluan: <code style="color:var(--adm);font-family:'Space Mono',monospace;">admin123</code></div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:#a78bfa;font-weight:700;margin-bottom:5px;">👁️ DEMO PEMANTAU</div>
-          <div style="font-size:11px;color:var(--t2);line-height:1.6;">ID: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau</code><br>Katalaluan: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">pemantau123</code></div>
-        </div>
-      </div>
+      <div class="card-hdr"><span style="color:var(--adm);">🔑 Maklumat Akaun Demo</span><button class="btn bs btn-sm" style="font-size:10px;padding:3px 8px;" onclick="openEditDemoAcc()">✏️ Sunting</button></div>
+      <div style="font-size:10px;color:var(--t2);margin-bottom:8px;">Paparan rujukan sahaja — tidak berkaitan dengan akaun sebenar. Hanya admin boleh sunting teks ini.</div>
+      <div id="demo-acc-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;"></div>
     </div>
 
     <div class="sgrid">
@@ -917,6 +911,14 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       </div>
 
       <div class="fg" style="margin-bottom:12px;">
+        <label class="fl">Warna Teks Utama Sistem</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="color" id="theme-text-picker" style="width:36px; height:36px; border:none; border-radius:6px; background:none; cursor:pointer;" onchange="updateCustomTheme()">
+          <input type="text" id="theme-text-hex" class="fi" style="font-family:'Space Mono'; text-transform:uppercase; padding:6px 8px; font-size:12px;" placeholder="#f1f5f9" readonly>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-bottom:12px;">
         <label class="fl">Jenis Tulisan (Font) Sistem</label>
         <select class="fs" id="theme-font-select" onchange="updateCustomFont()">
           <option value="'Syne',sans-serif">Syne (Asal)</option>
@@ -977,6 +979,17 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       </div>
     </div>
 
+
+    <!-- Toggle Papar Kata Laluan -->
+    <div class="card pemantau-hidden" style="border-color:rgba(245,158,11,0.25);">
+      <div class="card-hdr" style="color:var(--warn);">👁️ Paparan Kata Laluan (Admin)</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:10px;">Apabila diaktifkan, kata laluan asal pelajar (dalam borang Kemaskini Pelajar) dan kata laluan pemantau akan dipaparkan kepada admin. Tetapan ini hanya untuk paparan admin.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;">Papar Kata Laluan Asal</span>
+        <label class="switch"><input type="checkbox" id="show-pw-toggle" onchange="toggleShowPasswords(this.checked)"><span class="slider"></span></label>
+      </div>
+    </div>
+
     <!-- Urus Akses Pemantau Card -->
     <div class="card pemantau-hidden" style="border-color:rgba(139,148,255,0.25);">
       <div class="card-hdr" style="color:#a78bfa;">🔑 Urus Akses Pemantau (Observer)</div>
@@ -1001,6 +1014,10 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     </div>
     <div class="card pemantau-hidden" style="border-color:rgba(245,158,11,0.2);">
       <div class="card-hdr" style="color:var(--adm);">🔑 Tukar Kata Laluan Admin</div>
+      <div class="fg" id="adm-cur-pw-row" style="display:none;background:rgba(255,255,255,0.03);border:1px dashed var(--bdr);border-radius:8px;padding:8px 10px;">
+        <label class="fl" style="color:var(--warn);">🔑 Kata Laluan Semasa (Asal)</label>
+        <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--ac);" id="adm-cur-pw-val">—</div>
+      </div>
       <div class="fg"><label class="fl">Kata Laluan Baru</label><input type="password" class="fi" id="np1" placeholder="Min 6 aksara"></div>
       <div class="fg"><label class="fl">Sahkan</label><input type="password" class="fi" id="np2" placeholder="Ulang kata laluan"></div>
       <button class="btn ba btn-full" onclick="changeAdminPw()">Simpan Kata Laluan</button>
@@ -1067,11 +1084,24 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     </div>
     <div class="fg"><label class="fl">No. Telefon</label><input type="tel" class="fi" id="sf-ph" placeholder="0123456789"></div>
     <div class="fg"><label class="fl">E-mel (Pilihan)</label><input type="email" class="fi" id="sf-email" placeholder="pelajar@email.com"></div>
+    <div class="fg" id="sf-cur-pw-row" style="display:none;background:rgba(255,255,255,0.03);border:1px dashed var(--bdr);border-radius:8px;padding:8px 10px;">
+      <label class="fl" style="color:var(--warn);">🔑 Kata Laluan Semasa (Asal)</label>
+      <div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--ac);" id="sf-cur-pw-val">—</div>
+    </div>
     <div class="row2">
       <div class="fg"><label class="fl">Kata Laluan</label><input type="password" class="fi" id="sf-pw" placeholder="Min 6 aksara"></div>
       <div class="fg"><label class="fl">Sahkan</label><input type="password" class="fi" id="sf-pw2" placeholder="Ulang"></div>
     </div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-stu-form')">Batal</button><button class="btn ba" style="flex:2;" id="sf-save-btn" onclick="saveStu()">💾 Daftar Pelajar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT DEMO ACCOUNT INFO -->
+<div class="mwrap" id="m-demo-acc">
+  <div class="modal">
+    <div class="mhdr"><span>✏️ Sunting Maklumat Akaun Demo</span><button class="mx" onclick="closeM('m-demo-acc')">✕</button></div>
+    <div id="m-demo-acc-body"></div>
+    <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-demo-acc')">Batal</button><button class="btn bp" style="flex:2;" onclick="saveDemoAcc()">💾 Simpan</button></div>
   </div>
 </div>
 
@@ -1270,6 +1300,7 @@ const defaultTheme = {
   bg2: '#0a122c',
   bg3: '#0f1c3f',
   card: 'rgba(10,18,44,0.92)',
+  text: '#f1f5f9',
   font: "'Syne',sans-serif",
   fontSize: 100
 };
@@ -1348,6 +1379,7 @@ function applyTheme(theme) {
   root.style.setProperty('--bg3', theme.bg3);
   root.style.setProperty('--bdr', hexToRgbA(theme.accent, 0.15));
   if (theme.card) root.style.setProperty('--card', theme.card);
+  if (theme.text) root.style.setProperty('--text', theme.text);
   if (theme.font) root.style.setProperty('--app-font', theme.font);
   document.body.style.zoom = ((theme.fontSize || 100) / 100);
 
@@ -1357,6 +1389,8 @@ function applyTheme(theme) {
   const txtSec = document.getElementById('theme-secondary-hex');
   const pickerCard = document.getElementById('theme-card-picker');
   const txtCard = document.getElementById('theme-card-hex');
+  const pickerText = document.getElementById('theme-text-picker');
+  const txtText = document.getElementById('theme-text-hex');
   const fontSel = document.getElementById('theme-font-select');
   const fontSizeSlider = document.getElementById('theme-fontsize-slider');
   const fontSizeLbl = document.getElementById('theme-fontsize-label');
@@ -1372,6 +1406,10 @@ function applyTheme(theme) {
     const cardHex = theme.card.startsWith('rgba') ? rgbaToHex(theme.card) : theme.card;
     if (pickerCard) pickerCard.value = cardHex;
     if (txtCard) txtCard.value = cardHex;
+  }
+  if (theme.text) {
+    if (pickerText) pickerText.value = theme.text;
+    if (txtText) txtText.value = theme.text;
   }
 }
 
@@ -1399,7 +1437,7 @@ function rgbaToHex(rgba) {
 }
 
 function setThemePreset(acc, sec, bg, bg2, bg3, card) {
-  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card || hexToRgbA(bg2, 0.92), font: activeTheme.font, fontSize: activeTheme.fontSize };
+  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card || hexToRgbA(bg2, 0.92), text: activeTheme.text, font: activeTheme.font, fontSize: activeTheme.fontSize };
   applyTheme(activeTheme);
   toast('Tema pratetap dipilih! Sila simpan untuk tetapan kekal.', 'warn');
 }
@@ -1408,12 +1446,14 @@ function updateCustomTheme() {
   const acc = document.getElementById('theme-accent-picker').value;
   const sec = document.getElementById('theme-secondary-picker').value;
   const cardPicker = document.getElementById('theme-card-picker');
+  const textPicker = document.getElementById('theme-text-picker');
   const bg = '#02070e';
   const bg2 = hexToRgbA(acc, 0.04);
   const bg3 = hexToRgbA(acc, 0.08);
   const card = cardPicker && cardPicker.value ? hexToRgbA(cardPicker.value, 0.92) : (activeTheme.card || 'rgba(10,18,44,0.92)');
+  const text = textPicker && textPicker.value ? textPicker.value : (activeTheme.text || '#f1f5f9');
 
-  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card, font: activeTheme.font, fontSize: activeTheme.fontSize };
+  activeTheme = { accent: acc, secondary: sec, bg: bg, bg2: bg2, bg3: bg3, card: card, text: text, font: activeTheme.font, fontSize: activeTheme.fontSize };
   applyTheme(activeTheme);
 }
 
@@ -1509,7 +1549,7 @@ async function cloudPost(action, dataObj) {
 }
 
 // Simpan kunci konfigurasi ke localStorage DAN ke Sheet "Konfigurasi" (full cloud sync)
-const CLOUD_CONFIG_KEYS = ['pemantau_list','sub_admins','act_reports','settings','admin_creds','app_theme','app_bg_custom','custom_logo'];
+const CLOUD_CONFIG_KEYS = ['pemantau_list','sub_admins','act_reports','settings','admin_creds','app_theme','app_bg_custom','custom_logo','demo_acc_info','show_passwords'];
 function setConfig(key, value) {
   DB.set(key, value);
   if (CLOUD_CONFIG_KEYS.includes(key) && API_URL) {
@@ -1521,7 +1561,7 @@ async function syncAllCloud(silent = false) {
   if (!API_URL) { gdStCloud('local'); return true; }
   gdStCloud('syncing');
   const lbl = document.getElementById('sync-lbl');
-  if (lbl) lbl.innerHTML = '<span class="spin"></span> Menyegerakkan dengan Google Sheets...';
+  if (lbl && !silent) lbl.innerHTML = '<span class="spin"></span> Menyegerakkan dengan Google Sheets...';
   try {
     const res = await fetch(`${API_URL}?action=getAllData`, { method: "GET", mode: "cors" });
     const d = await res.json();
@@ -1554,7 +1594,7 @@ async function syncAllCloud(silent = false) {
 
       // Konfigurasi (sumber kebenaran tunggal: cloud Config sheet)
       const cfg = d.config || {};
-      const cfgKeys = ['pemantau_list','sub_admins','act_reports','settings','admin_creds','app_theme','app_bg_custom','custom_logo'];
+      const cfgKeys = ['pemantau_list','sub_admins','act_reports','settings','admin_creds','app_theme','app_bg_custom','custom_logo','demo_acc_info','show_passwords'];
       cfgKeys.forEach(k => { if (cfg[k] !== undefined) DB.set(k, cfg[k]); });
       if (cfg.app_theme) { activeTheme = cfg.app_theme; applyTheme(activeTheme); }
       if (cfg.app_bg_custom) { activeBg = cfg.app_bg_custom; applyBackgroundSettings(); }
@@ -1896,7 +1936,11 @@ function getSheetRowsJSON(sheet) {
 }
 
 function factoryResetLocal() {
-  showConfirm('⚠️ Set Semula Aplikasi', 'Ini akan memadam semua data cache lokal (kehadiran, profil, pelajar) dan mengembalikan tetapan asal. Teruskan?', (c) => {
+  const cloudOk = !!API_URL;
+  const msg = cloudOk
+    ? '⚠️ Ini akan memadam cache tempatan peranti ini (kehadiran, profil, pelajar) dan memuat semula dari Google Sheets Cloud. Data di Sheets TIDAK terjejas. Teruskan?'
+    : '🚨 AMARAN: Sistem TIDAK disambungkan ke Google Sheets Cloud (Mod Simulasi Lokal). Tindakan ini akan MEMADAM SEMUA DATA SECARA KEKAL (pelajar, kehadiran, aktiviti, pengumuman, tetapan) dan TIDAK BOLEH DIKEMBALIKAN. Teruskan?';
+  showConfirm('⚠️ Set Semula Aplikasi', msg, (c) => {
     if (c) {
       localStorage.clear();
       toast('Aplikasi berjaya diset semula!', 'success');
@@ -2546,7 +2590,90 @@ function refreshAdmDash(){
   document.getElementById('ad-top-stu').innerHTML=ranked.length?ranked.map((u,i)=>`<div class="li"><div style="width:20px;font-size:13px;font-weight:800;color:var(--ac);">${i+1}</div><div class="linfo"><div class="ltitle">${u.name}</div><div class="lsub">${u.matric}</div></div><span style="font-size:13px;font-weight:800;">${u.pct}%</span></div>`).join(''):'<div class="empty">Tiada data pelajar</div>';
   
   document.getElementById('ad-att-prog').innerHTML=acts.length?[...acts].reverse().slice(0,5).map(a=>{const ua=atts.filter(x=>x.actId===a.id),p=ua.filter(x=>x.status==='present').length,pct=ua.length?Math.round(p/ua.length*100):0,fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;font-size:11px;">${a.name}</span><span>${p}/${ua.length} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada aktiviti</div>';
-  renderAdminWeeklyChart(); renderAnnouncements(); renderVisitorStats();
+  renderAdminWeeklyChart(); renderAnnouncements(); renderVisitorStats(); renderDemoAccCard();
+}
+
+function defaultDemoAcc() {
+  return {
+    stu: { label1: 'Matrik', val1: 'ET2401001', label2: 'Kata laluan', val2: 'demo123' },
+    admin: { label1: 'ID', val1: 'admin', label2: 'Katalaluan', val2: 'admin123' },
+    pemantau: { label1: 'ID', val1: 'pemantau', label2: 'Katalaluan', val2: 'pemantau123' }
+  };
+}
+
+function renderDemoAccCard() {
+  const el = document.getElementById('demo-acc-grid');
+  if (!el) return;
+  const d = DB.get('demo_acc_info') || defaultDemoAcc();
+
+  el.innerHTML = `
+    <div>
+      <div style="font-size:11px;color:var(--warn);font-weight:700;margin-bottom:5px;">💡 DEMO PELAJAR</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.6;">${d.stu.label1}: <code style="color:var(--ac);font-family:'Space Mono',monospace;">${d.stu.val1}</code><br>${d.stu.label2}: <code style="color:var(--ac);font-family:'Space Mono',monospace;">${d.stu.val2}</code></div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--adm);font-weight:700;margin-bottom:5px;">🛡️ DEMO ADMIN</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.6;">${d.admin.label1}: <code style="color:var(--adm);font-family:'Space Mono',monospace;">${d.admin.val1}</code><br>${d.admin.label2}: <code style="color:var(--adm);font-family:'Space Mono',monospace;">${d.admin.val2}</code></div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:#a78bfa;font-weight:700;margin-bottom:5px;">👁️ DEMO PEMANTAU</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.6;">${d.pemantau.label1}: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">${d.pemantau.val1}</code><br>${d.pemantau.label2}: <code style="color:#a78bfa;font-family:'Space Mono',monospace;">${d.pemantau.val2}</code></div>
+    </div>
+  `;
+}
+
+function openEditDemoAcc() {
+  const d = DB.get('demo_acc_info') || defaultDemoAcc();
+  const body = document.getElementById('m-demo-acc-body');
+  body.innerHTML = `
+    <div class="fg"><label class="fl" style="color:var(--warn);">💡 Demo Pelajar — Baris 1</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-stu-l1" value="${d.stu.label1}" placeholder="Label" style="flex:1;"><input class="fi" id="da-stu-v1" value="${d.stu.val1}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+    <div class="fg"><label class="fl" style="color:var(--warn);">💡 Demo Pelajar — Baris 2</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-stu-l2" value="${d.stu.label2}" placeholder="Label" style="flex:1;"><input class="fi" id="da-stu-v2" value="${d.stu.val2}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+    <div class="fg"><label class="fl" style="color:var(--adm);">🛡️ Demo Admin — Baris 1</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-adm-l1" value="${d.admin.label1}" placeholder="Label" style="flex:1;"><input class="fi" id="da-adm-v1" value="${d.admin.val1}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+    <div class="fg"><label class="fl" style="color:var(--adm);">🛡️ Demo Admin — Baris 2</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-adm-l2" value="${d.admin.label2}" placeholder="Label" style="flex:1;"><input class="fi" id="da-adm-v2" value="${d.admin.val2}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+    <div class="fg"><label class="fl" style="color:#a78bfa;">👁️ Demo Pemantau — Baris 1</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-pem-l1" value="${d.pemantau.label1}" placeholder="Label" style="flex:1;"><input class="fi" id="da-pem-v1" value="${d.pemantau.val1}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+    <div class="fg"><label class="fl" style="color:#a78bfa;">👁️ Demo Pemantau — Baris 2</label>
+      <div style="display:flex;gap:6px;"><input class="fi" id="da-pem-l2" value="${d.pemantau.label2}" placeholder="Label" style="flex:1;"><input class="fi" id="da-pem-v2" value="${d.pemantau.val2}" placeholder="Nilai" style="flex:1;"></div>
+    </div>
+  `;
+  openM('m-demo-acc');
+}
+
+function saveDemoAcc() {
+  if (guardWrite('settings')) return;
+  const d = {
+    stu: { label1: val('da-stu-l1'), val1: val('da-stu-v1'), label2: val('da-stu-l2'), val2: val('da-stu-v2') },
+    admin: { label1: val('da-adm-l1'), val1: val('da-adm-v1'), label2: val('da-adm-l2'), val2: val('da-adm-v2') },
+    pemantau: { label1: val('da-pem-l1'), val1: val('da-pem-v1'), label2: val('da-pem-l2'), val2: val('da-pem-v2') }
+  };
+  setConfig('demo_acc_info', d);
+  renderDemoAccCard();
+  closeM('m-demo-acc');
+  toast('Maklumat Akaun Demo dikemaskini!', 'success');
+}
+
+function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function togglePwReveal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const revealed = el.style.webkitTextSecurity === 'none';
+  if (revealed) {
+    el.style.webkitTextSecurity = 'disc';
+    el.textContent = '●●●●●●';
+  } else {
+    el.style.webkitTextSecurity = 'none';
+    el.textContent = el.getAttribute('data-pw') || '—';
+  }
 }
 
 function renderVisitorStats() {
@@ -2921,8 +3048,13 @@ function previewSfAvatar(event) {
   const file = event.target.files[0]; if (file) { handleAvatarUpload(file, (dataUrl) => { tempSfAvatar = dataUrl; const preview = document.getElementById('sf-av-preview'); preview.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`; preview.style.background = 'none'; }); }
 }
 
-function openAddStu(){if(guardWrite('students'))return;document.getElementById('m-sf-ttl').textContent='Daftar Pelajar Baru';document.getElementById('sf-orig').value='';['sf-name','sf-mat','sf-ph','sf-email','sf-pw','sf-pw2'].forEach(id=>document.getElementById(id).value='');tempSfAvatar = '';document.getElementById('sf-av-preview').innerHTML = 'ET';document.getElementById('sf-av-preview').style.background = '';fillStuSelects();openM('m-stu-form');}
-function openEditStu(mat){if(guardWrite('students'))return;const u=(DB.get('users')||[]).find(x=>x.matric===mat);if(!u)return;document.getElementById('m-sf-ttl').textContent='Kemaskini Pelajar';document.getElementById('sf-orig').value=mat;document.getElementById('sf-name').value=u.name;document.getElementById('sf-mat').value=u.matric;document.getElementById('sf-ph').value=u.phone;document.getElementById('sf-email').value=u.email||'';document.getElementById('sf-pw').value='';document.getElementById('sf-pw2').value='';tempSfAvatar = u.avatar || '';setAvatarElement('sf-av-preview', u.name, tempSfAvatar);fillStuSelects();setTimeout(()=>{document.getElementById('sf-prog').value=u.progtype;document.getElementById('sf-sem').value=u.semester;document.getElementById('sf-grp').value=u.class;},60);closeM('m-stu');openM('m-stu-form');}
+function openAddStu(){if(guardWrite('students'))return;document.getElementById('m-sf-ttl').textContent='Daftar Pelajar Baru';document.getElementById('sf-orig').value='';['sf-name','sf-mat','sf-ph','sf-email','sf-pw','sf-pw2'].forEach(id=>document.getElementById(id).value='');tempSfAvatar = '';document.getElementById('sf-av-preview').innerHTML = 'ET';document.getElementById('sf-av-preview').style.background = '';document.getElementById('sf-cur-pw-row').style.display='none';fillStuSelects();openM('m-stu-form');}
+function openEditStu(mat){if(guardWrite('students'))return;const u=(DB.get('users')||[]).find(x=>x.matric===mat);if(!u)return;document.getElementById('m-sf-ttl').textContent='Kemaskini Pelajar';document.getElementById('sf-orig').value=mat;document.getElementById('sf-name').value=u.name;document.getElementById('sf-mat').value=u.matric;document.getElementById('sf-ph').value=u.phone;document.getElementById('sf-email').value=u.email||'';document.getElementById('sf-pw').value='';document.getElementById('sf-pw2').value='';
+  const showPw = DB.get('show_passwords');
+  const pwRow = document.getElementById('sf-cur-pw-row');
+  if (showPw) { pwRow.style.display='block'; document.getElementById('sf-cur-pw-val').textContent = u.pass || '—'; }
+  else { pwRow.style.display='none'; }
+  tempSfAvatar = u.avatar || '';setAvatarElement('sf-av-preview', u.name, tempSfAvatar);fillStuSelects();setTimeout(()=>{document.getElementById('sf-prog').value=u.progtype;document.getElementById('sf-sem').value=u.semester;document.getElementById('sf-grp').value=u.class;},60);closeM('m-stu');openM('m-stu-form');}
 
 async function saveStu(){
   if(guardWrite('students'))return;
@@ -2992,7 +3124,7 @@ function viewStu(mat){
      <div class="irow"><span class="ilbl">No. Telefon</span><span>${u.phone}</span></div>
      <div class="irow"><span class="ilbl">Peratus Kehadiran</span><span style="color:${col};font-weight:700;">${pct}% <span style="font-size:10px;color:var(--t2);font-weight:400;">(${p}/${atts.length} sesi)</span></span></div>
      <div class="irow"><span class="ilbl">Skor Sahsiah</span><span style="color:${scoreCol};font-weight:700;">${savedScore}/100${scoreNote}</span></div>
-     <div class="irow"><span class="ilbl">Kata Laluan</span><span><span id="stu-detail-pw" data-pw="${u.pass}" style="-webkit-text-security:disc; font-family:'Space Mono';">●●●●●●</span></span></div>
+     <div class="irow"><span class="ilbl">Kata Laluan</span><span><span id="stu-detail-pw" data-pw="${u.pass}" style="-webkit-text-security:disc; font-family:'Space Mono';">●●●●●●</span> <span style="cursor:pointer;font-size:11px;" onclick="togglePwReveal('stu-detail-pw')">👁️</span></span></div>
      <div class="shdr">Ulasan Sahsiah</div>
      ${beh.tags?.map(t=>`<span class="btag">✓ ${t}</span>`).join('')||'—'}
      ${beh.note?`<div style="font-size:12px;color:var(--t2);margin-top:6px;padding:9px;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.6;">${beh.note}</div>`:''}
@@ -3266,13 +3398,33 @@ function releaseSession(key) {
 
 function renderSettings(){
   const s=DB.get('settings')||defSets(); rSL('sl-prog',s.programTypes,'programTypes'); rSL('sl-sem',s.semesters,'semesters'); rSL('sl-grp',s.groups,'groups');
+  const showPwToggle = document.getElementById('show-pw-toggle');
+  if (showPwToggle) showPwToggle.checked = !!DB.get('show_passwords');
+  const admPwRow = document.getElementById('adm-cur-pw-row');
+  if (admPwRow) {
+    if (DB.get('show_passwords')) {
+      admPwRow.style.display = 'block';
+      const c = DB.get('admin_creds') || {};
+      document.getElementById('adm-cur-pw-val').textContent = c.pass || '—';
+    } else {
+      admPwRow.style.display = 'none';
+    }
+  }
   const pc = DB.get('pemantau_list') || [];
   const slPemantau = document.getElementById('sl-pemantau');
   if (slPemantau) {
-    slPemantau.innerHTML = pc.map((p, i) => `<div class="setitem"><span style="flex:1;font-size:13px;">${p.user} (${p.active?'Aktif':'Nyahaktif'})</span><button class="btn bs btn-sm pemantau-hidden" onclick="loadPemantau(${i})">✏️</button><button class="btn bd btn-sm pemantau-hidden" onclick="delPemantau(${i})">🗑</button></div>`).join('');
+    const showPw = DB.get('show_passwords');
+    slPemantau.innerHTML = pc.map((p, i) => `<div class="setitem"><span style="flex:1;font-size:13px;">${p.user} (${p.active?'Aktif':'Nyahaktif'})${showPw ? ` · <span style="font-family:'Space Mono',monospace;color:var(--ac);font-size:11px;">🔑 ${p.pass}</span>` : ''}</span><button class="btn bs btn-sm pemantau-hidden" onclick="loadPemantau(${i})">✏️</button><button class="btn bd btn-sm pemantau-hidden" onclick="delPemantau(${i})">🗑</button></div>`).join('');
   }
   const cidEl=document.getElementById('gd-client-id-in'); if(cidEl) cidEl.value=API_URL;
   gdStCloud(API_URL ? 'ok' : 'local');
+}
+
+function toggleShowPasswords(checked) {
+  if (guardWrite('settings')) return;
+  setConfig('show_passwords', checked);
+  renderSettings();
+  toast(checked ? '👁️ Kata laluan kini dipaparkan kepada admin.' : '🔒 Kata laluan kini disembunyikan.', checked ? 'warn' : 'success');
 }
 
 function loadPemantau(idx) {
@@ -3354,6 +3506,27 @@ function initials(n){return n?n.split(' ').slice(0,2).map(w=>w[0]).join(''):'ET'
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function fmtDate(iso){return new Date(iso).toLocaleDateString('ms-MY',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className=`toast${type?' '+type:''} show`;clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3500);}
+
+// PENGESANAN 'HANG' / LAG - beritahu pengguna jika sistem lambat bertindak balas
+(function() {
+  let lastTick = performance.now();
+  let warned = false;
+  const HANG_THRESHOLD = 1500; // ms - anggap 'hang' jika gap > 1.5s
+  const COOLDOWN = 15000; // jangan spam, minimum 15s antara amaran
+  let lastWarnTime = 0;
+
+  function tick() {
+    const now = performance.now();
+    const gap = now - lastTick;
+    if (gap > HANG_THRESHOLD && (now - lastWarnTime) > COOLDOWN) {
+      lastWarnTime = now;
+      try { toast('⏳ Sistem sedang memproses... sila bersabar sebentar.', 'warn'); } catch(e) {}
+    }
+    lastTick = now;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
 
 /* DYNAMIC REAL TIME CHART CALCULATION (ISNIN-JUMAAT) */
 function getWeeklyMetrics(userMatric = null) {
@@ -3466,6 +3639,9 @@ function getYouTubeEmbedUrl(url) {
 
 function renderAnnouncements() {
   const anns = DB.get('announcements') || []; const sorted = [...anns].reverse();
+  const sig = JSON.stringify(sorted.map(a => a.id + '|' + a.title + '|' + a.content + '|' + a.image + '|' + a.video + '|' + a.link));
+  if (window._annSig === sig) return; // tiada perubahan - elak reset video YouTube
+  window._annSig = sig;
   const stuList = document.getElementById('stu-ann-list');
   if (stuList) {
     stuList.innerHTML = sorted.map(a => {
@@ -3645,7 +3821,7 @@ window.addEventListener('load', async () => {
   }
 });
 
-// AUTO-SYNC BERKALA (setiap 20 saat) - supaya data segerak automatik antara peranti
+// AUTO-SYNC BERKALA (setiap 5 saat) - supaya data segerak automatik antara peranti
 let _autoSyncInterval = setInterval(() => {
   if (API_URL && !document.hidden && document.getElementById('m-confirm')?.style.display !== 'flex') {
     syncAllCloud(true).then(() => {
@@ -3653,10 +3829,14 @@ let _autoSyncInterval = setInterval(() => {
       try {
         if (typeof refreshAdmDash === 'function' && document.getElementById('view-admin')?.classList.contains('active')) refreshAdmDash();
         if (typeof renderAnnouncements === 'function') renderAnnouncements();
+        if (typeof applyTheme === 'function') {
+          const t = DB.get('app_theme');
+          if (t && JSON.stringify(t) !== JSON.stringify(activeTheme)) { activeTheme = t; applyTheme(activeTheme); }
+        }
       } catch(e) {}
     }).catch(()=>{});
   }
-}, 20000);
+}, 5000);
 
 // Bila tab kembali aktif (pengguna tukar balik dari app/tab lain), terus sync
 document.addEventListener('visibilitychange', () => {
