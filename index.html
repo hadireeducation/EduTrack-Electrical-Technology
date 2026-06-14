@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,6 +16,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 <style>
 :root{
   --bg:#030914;--bg2:#0a122c;--bg3:#0f1c3f;
@@ -418,6 +421,38 @@ body.mode-pemantau .pemantau-only { display: block !important; }
   color: #fff;
   box-shadow: 0 0 15px var(--a2);
 }
+
+/* ═══ RESPONSIVE: TABLET & DESKTOP ═══ */
+@media (min-width: 768px) {
+  .screen { max-width: 680px; padding: 18px 22px; }
+  .row2 { gap: 14px; }
+  .sgrid { gap: 14px; }
+  .card { padding: 20px; }
+  .nav { max-width: 680px; margin: 0 auto; }
+  .bnav { max-width: 680px; left: 50%; right: auto; transform: translateX(-50%); border-radius: 16px 16px 0 0; }
+}
+@media (min-width: 1024px) {
+  .screen { max-width: 880px; padding: 22px 28px; }
+  body { font-size: 15px; }
+  .sgrid { grid-template-columns: repeat(3, 1fr); }
+  #demo-acc-grid { grid-template-columns: repeat(3, 1fr); }
+  .modal { max-width: 720px; margin: 0 auto; border-radius: 20px; }
+  .mwrap { align-items: center; }
+  .mwrap.center .modal { max-width: 420px; }
+  .nav { max-width: 880px; }
+  .bnav { max-width: 880px; }
+}
+@media (min-width: 1440px) {
+  .screen { max-width: 1100px; }
+  .sgrid { grid-template-columns: repeat(4, 1fr); }
+  .nav { max-width: 1100px; }
+  .bnav { max-width: 1100px; }
+}
+@media (max-width: 380px) {
+  .screen { padding: 10px 12px; }
+  .card { padding: 12px; }
+  #demo-acc-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -426,6 +461,7 @@ body.mode-pemantau .pemantau-only { display: block !important; }
 <!-- ══ AUTH ══ -->
 <div id="auth-wrap" class="screen active" style="padding-top:0;">
   <div class="hero">
+    <div class="custom-logo-display" style="width:64px;height:64px;border-radius:14px;margin:0 auto 12px;overflow:hidden;"></div>
     <div class="hbadge">⚡ Program Teknologi Elektrik</div>
     <h1>Sistem <span>Kehadiran</span><br>& Aktiviti Digital</h1>
     <p>Rekod kehadiran, aktiviti & sahsiah pelajar dengan Cloud Database</p>
@@ -673,7 +709,6 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     <div class="nav-brand"><div class="nlogo adm" id="adm-logo-char">A</div><div class="ntitle">Edu<span>Track</span></div></div>
     <div class="nright">
       <span class="abadge" id="adm-badge-role">ADMIN</span>
-      <div id="gd-nav-dot" style="width:7px;height:7px;border-radius:50%;background:#64748b;cursor:pointer;" title="Refresh Data" onclick="syncAllCloud()"></div>
       <button class="btn bs btn-sm" onclick="doAdminLogout()">Keluar</button>
     </div>
   </nav>
@@ -752,9 +787,20 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     <!-- HIDDEN FOR PEMANTAU -->
     <div class="card pemantau-hidden">
       <div class="card-hdr">📤 Eksport Data</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:8px;">💡 Tip: guna butang "🔄 Segerak" pada bar status Pangkalan Data (atas) untuk muat semula data cloud serta-merta.</div>
       <div style="display:flex;flex-direction:column;gap:7px;">
-        <button class="btn bg btn-full" onclick="syncAllCloud()"><span id="sync-lbl">☁️ Muat Semula Serta-merta (Cloud Fetch)</span></button>
         <button class="btn bs btn-full" onclick="exportCSVLocal()">💾 Muat Turun CSV Lokal</button>
+      </div>
+    </div>
+
+    <!-- Laporan Analisis Infografik -->
+    <div class="card pemantau-hidden">
+      <div class="card-hdr">📥 Muat Turun Laporan Analisis</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:10px;">Laporan merangkumi: senarai pelajar, kehadiran, sahsiah, aktiviti, pengumuman & statistik pelawat — berdasarkan data semasa.</div>
+      <div class="row2" style="grid-template-columns:1fr 1fr 1fr;">
+        <button class="btn ba" style="font-size:11px;padding:9px 4px;" onclick="downloadReportPDF()">📄 PDF</button>
+        <button class="btn ba" style="font-size:11px;padding:9px 4px;" onclick="downloadReportWord()">📝 Word</button>
+        <button class="btn ba" style="font-size:11px;padding:9px 4px;" onclick="downloadReportExcel()">📊 Excel</button>
       </div>
     </div>
 
@@ -857,12 +903,9 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       <div id="usr-mgmt-list"></div>
     </div>
     <div class="card" style="border-color:rgba(245,158,11,0.2);">
-      <div class="card-hdr" style="color:var(--adm);">👁 Urus Akaun Pemantau</div>
-      <div class="fg"><label class="fl">Status Akses</label><select class="fs" id="usr-pemantau-status"><option value="aktif">🟢 Aktif</option><option value="tidak_aktif">❌ Nyahaktif</option></select></div>
-      <div class="fg"><label class="fl">Nama Pengguna</label><input type="text" class="fi" id="usr-pemantau-user" placeholder="Cth: pemantau1"></div>
-      <div class="fg"><label class="fl">Kata Laluan</label><input type="password" class="fi" id="usr-pemantau-pw" placeholder="••••••••"></div>
-      <button class="btn ba btn-full" onclick="saveUsrPemantau()">Simpan Akaun Pemantau</button>
-      <div id="usr-pemantau-list" class="mt12"></div>
+      <div class="card-hdr" style="color:var(--adm);">👁 Akaun Pemantau</div>
+      <div class="notice" style="font-size:11px;">ℹ️ Tambah, sunting, atau padam akaun pemantau dilakukan di <strong>Tetapan → 🔑 Urus Akses Pemantau</strong>. Senarai pemantau sedia ada untuk dilantik sebagai Admin Tambahan dipaparkan dalam kad "Pengurusan Admin Tambahan" di atas.</div>
+      <button class="btn bs btn-full mt8" onclick="aTab('set')">⚙️ Pergi ke Tetapan</button>
     </div>
     <div style="height:20px;"></div>
   </div>
@@ -1144,7 +1187,7 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     </div>
     <div class="fg"><label class="fl">Tajuk Pengumuman</label><input type="text" class="fi" id="ann-title-in" placeholder="Cth: Taklimat Keselamatan Bengkel..."></div>
     <div class="fg"><label class="fl">Kandungan / Perincian</label><textarea class="fta" id="ann-content-in" placeholder="Tulis pengumuman di sini..."></textarea></div>
-    <div class="fg"><label class="fl">Pautan Video YouTube (Pilihan) — akan dipaparkan terus dengan audio</label><input type="text" class="fi" id="ann-video-in" placeholder="https://www.youtube.com/watch?v=..."></div>
+    <div class="fg"><label class="fl">Pautan Video (YouTube atau Google Drive) (Pilihan) — akan dipaparkan terus dengan audio</label><input type="text" class="fi" id="ann-video-in" placeholder="https://www.youtube.com/watch?v=... atau https://drive.google.com/file/d/.../view"></div>
     <div class="fg"><label class="fl">Pautan Dokumen / Tindakan (Pilihan)</label><input type="text" class="fi" id="ann-link-in" placeholder="https://drive.google.com/..."></div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-ann-form')">Batal</button><button class="btn bp" style="flex:2;" onclick="saveAnnouncement()">💾 Terbitkan Makluman</button></div>
   </div>
@@ -1290,7 +1333,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbyRAx3bAFljEpw2o2sl46X1Ze7FU5nyWApDva1JSvdNit2spG1QjaSR2fIJyY1rdOey/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbwdqvsngWU2hvtKGvLhAwT87MBrVXEDnGkHHfr1VtPKEyyEhaWgll_ECN5gIzkodufi/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1586,11 +1629,15 @@ async function syncAllCloud(silent = false) {
       const mappedAnns = (d.announcements || []).map(an => ({
         id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', link: an.Pautan||'', by: an.Penulis||''
       }));
+      const mappedVisitors = (d.visitors || []).map(v => ({
+        matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'', activity: v.Aktiviti||''
+      }));
 
       DB.set('users', mappedUsers);
       DB.set('activities', mappedActs);
       DB.set('attendance', mappedAtts);
       DB.set('announcements', mappedAnns);
+      if (d.visitors !== undefined) DB.set('visitor_log', mappedVisitors);
 
       // Konfigurasi (sumber kebenaran tunggal: cloud Config sheet)
       const cfg = d.config || {};
@@ -1604,7 +1651,6 @@ async function syncAllCloud(silent = false) {
 
       gdStCloud('ok');
       if (lbl) lbl.textContent = '☁️ Muat Semula Serta-merta (Cloud Fetch)';
-      if (!silent) toast('☁️ Sinkronisasi Google Sheets Berjaya!', 'success');
       if (CU) { const freshU = mappedUsers.find(u => u.matric === CU.matric); if (freshU) CU = freshU; renderStuDash(); }
       if (ADMIN || PEMANTAU) refreshAdmDash();
       return true;
@@ -1612,7 +1658,6 @@ async function syncAllCloud(silent = false) {
   } catch (e) {
     gdStCloud('error');
     if (lbl) lbl.textContent = '☁️ Muat Semula Serta-merta (Cloud Fetch)';
-    if (!silent) toast('⚠️ Gagal bersambung ke Cloud API.', 'error');
   }
   return false;
 }
@@ -1661,6 +1706,7 @@ const SHEET_NAME_ATT = "Kehadiran";
 const SHEET_NAME_ANN = "Pengumuman";
 const SHEET_NAME_CONFIG = "Konfigurasi";
 const SHEET_NAME_SESSIONS = "Sesi";
+const SHEET_NAME_VISITOR = "PelawatLog";
 
 function doGet(e) {
   const action = e.parameter.action;
@@ -1738,6 +1784,27 @@ function doPost(e) {
           if (vals[i][2] === postData.id) attSheet.deleteRow(i + 1);
         }
       }
+      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "addVisitor") {
+      let sheet = doc.getSheetByName(SHEET_NAME_VISITOR) || doc.insertSheet(SHEET_NAME_VISITOR);
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(["Matrik", "Nama", "Masa", "Aktiviti"]);
+      }
+      sheet.appendRow([postData.matric, postData.name, postData.time, postData.activity || ""]);
+      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "attendanceBulkOverwrite") {
+      let sheet = doc.getSheetByName(SHEET_NAME_ATT) || doc.insertSheet(SHEET_NAME_ATT);
+      sheet.clear();
+      sheet.appendRow(["ID", "Matrik", "AktivitiID", "TarikhMasa", "Status", "DirekodOleh"]);
+      (postData.list || []).forEach(r => {
+        sheet.appendRow([r.id, r.matric, r.actId, r.date, r.status, r.by || ""]);
+      });
       return ContentService.createTextOutput(JSON.stringify({status: "success"}))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -1895,6 +1962,7 @@ function retrieveDatabaseData() {
     activities: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ACT)),
     attendance: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ATT)),
     announcements: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ANN)),
+    visitors: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_VISITOR)),
     config: getConfigJSON(doc.getSheetByName(SHEET_NAME_CONFIG))
   };
 }
@@ -1924,7 +1992,8 @@ function getSheetRowsJSON(sheet) {
     list.push(row);
   }
   return list;
-}`;
+}
+`;
 
   const dummy = document.createElement('textarea');
   document.body.appendChild(dummy);
@@ -1979,7 +2048,7 @@ function guardWrite(area='general', showToast=true) {
   if (IS_SUB_ADMIN) return false; // sub-admin = akses penuh seperti admin
   if (PEMANTAU) {
     // Pemantau boleh: activities (timer), behavior, announcements, reports
-    if (['activities','behavior','announcements','reports','timer'].includes(area)) return false;
+    if (['activities','behavior','announcements','reports','timer','attendance'].includes(area)) return false;
     if (showToast) toast(`⚠️ Akses Terhad Pemantau: Dilarang mengubah tetapan sistem.`, 'warn');
     return true;
   }
@@ -2025,6 +2094,7 @@ function logVisit(u, roleLabel) {
     const visits = DB.get('visitor_log') || [];
     visits.push(entry);
     DB.set('visitor_log', visits);
+    if (API_URL) cloudPost('addVisitor', entry).catch(()=>{});
   } catch(e) {}
 }
 
@@ -2115,6 +2185,7 @@ function enterAdmin(){
 }
 
 resolveAdminRole();
+applyCustomLogo();
 
 function sScreen(n){
   document.querySelectorAll('#stu-app .screen').forEach(s=>s.classList.remove('active'));
@@ -2950,14 +3021,6 @@ function renderUsrMgmt() {
   const el = document.getElementById('usr-mgmt-list');
   if (!el) return;
 
-  // Render pemantau list in second card
-  const slPemEl = document.getElementById('usr-pemantau-list');
-  if (slPemEl) {
-    slPemEl.innerHTML = plist.length
-      ? plist.map((p, i) => `<div class="setitem"><span style="flex:1;font-size:13px;">${p.user} <span style="font-size:10px;color:${p.active?'var(--a3)':'var(--danger)'};">(${p.active?'Aktif':'Nyahaktif'})</span></span><button class="btn bs btn-sm" onclick="loadUsrPemantau(${i})">✏️</button><button class="btn bd btn-sm" onclick="delUsrPemantau(${i})">🗑</button></div>`).join('')
-      : '<div class="empty">Tiada akaun pemantau.</div>';
-  }
-
   // Lantik dari kalangan Pemantau sahaja
   if (!plist.length) {
     el.innerHTML = '<div class="empty" style="padding:14px 0;">Tiada akaun pemantau. Tambah pemantau di bawah terlebih dahulu.</div>';
@@ -2981,32 +3044,6 @@ function renderUsrMgmt() {
       </div>
     </div>`;
   }).join('');
-}
-
-function saveUsrPemantau() {
-  const user = document.getElementById('usr-pemantau-user').value.trim();
-  const pw = document.getElementById('usr-pemantau-pw').value.trim();
-  const status = document.getElementById('usr-pemantau-status').value;
-  if (!user || !pw) return toast('Sila isi nama pengguna dan kata laluan', 'error');
-  const plist = DB.get('pemantau_list') || [];
-  const idx = plist.findIndex(p => p.user.toLowerCase() === user.toLowerCase());
-  const entry = { user, pass: pw, active: status === 'aktif' };
-  if (idx > -1) plist[idx] = entry; else plist.push(entry);
-  setConfig('pemantau_list', plist);
-  toast(`✅ Akaun pemantau "${user}" berjaya disimpan.`, 'success');
-  document.getElementById('usr-pemantau-user').value = '';
-  document.getElementById('usr-pemantau-pw').value = '';
-  renderUsrMgmt();
-}
-
-function loadUsrPemantau(idx) {
-  const plist = DB.get('pemantau_list') || []; const p = plist[idx]; if (!p) return;
-  document.getElementById('usr-pemantau-user').value = p.user;
-  document.getElementById('usr-pemantau-pw').value = p.pass;
-  document.getElementById('usr-pemantau-status').value = p.active ? 'aktif' : 'tidak_aktif';
-}
-function delUsrPemantau(idx) {
-  const plist = DB.get('pemantau_list') || []; plist.splice(idx, 1); setConfig('pemantau_list', plist); renderUsrMgmt();
 }
 
 function appointSubAdmin(matric) {
@@ -3094,6 +3131,52 @@ function renderStuList(){
   }).join('');
 }
 
+function renderAttRecords(atts, mat) {
+  if (!atts.length) return '<div class="empty">Tiada rekod kehadiran.</div>';
+  const acts = DB.get('activities') || [];
+  const sorted = [...atts].sort((a,b) => new Date(b.date) - new Date(a.date));
+  return sorted.map(r => {
+    const act = acts.find(a => a.id === r.actId);
+    const actName = act ? act.name : (r.actId || '—');
+    const statusColor = r.status === 'present' ? 'var(--a3)' : 'var(--danger)';
+    const statusText = r.status === 'present' ? 'Hadir' : 'Tidak Hadir';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;background:rgba(255,255,255,0.03);border-radius:8px;padding:7px 9px;font-size:11px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;">${actName}</div>
+        <div style="color:var(--t2);">${fmtDate(r.date)} · Oleh: ${r.by || '—'}</div>
+      </div>
+      <span style="color:${statusColor};font-weight:700;white-space:nowrap;">${statusText}</span>
+      <button class="btn bs btn-sm" style="padding:3px 7px;font-size:10px;" onclick="toggleAttStatus('${r.id}','${mat}')" title="Tukar Status">🔁</button>
+      <button class="btn bd btn-sm" style="padding:3px 7px;font-size:10px;" onclick="delAttRecord('${r.id}','${mat}')" title="Padam">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleAttStatus(id, mat) {
+  if (guardWrite('attendance')) return;
+  const atts = DB.get('attendance') || [];
+  const idx = atts.findIndex(a => a.id === id);
+  if (idx === -1) return;
+  atts[idx].status = atts[idx].status === 'present' ? 'absent' : 'present';
+  DB.set('attendance', atts);
+  cloudPost("attendanceBulkOverwrite", { list: atts }).catch(()=>{});
+  document.getElementById('stu-att-list').innerHTML = renderAttRecords(atts.filter(a => a.matric === mat), mat);
+  toast('Status kehadiran dikemaskini!', 'success');
+}
+
+function delAttRecord(id, mat) {
+  if (guardWrite('attendance')) return;
+  showConfirm('Padam Rekod Kehadiran', 'Pasti padam rekod kehadiran ini? Tindakan ini tidak boleh diundur.', (c) => {
+    if (!c) return;
+    let atts = DB.get('attendance') || [];
+    atts = atts.filter(a => a.id !== id);
+    DB.set('attendance', atts);
+    cloudPost("attendanceBulkOverwrite", { list: atts }).catch(()=>{});
+    document.getElementById('stu-att-list').innerHTML = renderAttRecords(atts.filter(a => a.matric === mat), mat);
+    toast('Rekod kehadiran dipadam!', 'success');
+  });
+}
+
 function viewStu(mat){
   const u=(DB.get('users')||[]).find(x=>x.matric===mat); if(!u)return;
   const atts=(DB.get('attendance')||[]).filter(a=>a.matric===mat),p=atts.filter(a=>a.status==='present').length,pct=atts.length?Math.round(p/atts.length*100):0,col=pct>=80?'var(--a3)':pct>=60?'var(--warn)':'var(--danger)',beh=u.behavior||{};
@@ -3128,6 +3211,8 @@ function viewStu(mat){
      <div class="shdr">Ulasan Sahsiah</div>
      ${beh.tags?.map(t=>`<span class="btag">✓ ${t}</span>`).join('')||'—'}
      ${beh.note?`<div style="font-size:12px;color:var(--t2);margin-top:6px;padding:9px;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.6;">${beh.note}</div>`:''}
+     <div class="shdr" style="margin-top:12px;">📅 Rekod Kehadiran (${atts.length})</div>
+     <div id="stu-att-list" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">${renderAttRecords(atts, mat)}</div>
      <div class="shdr" style="margin-top:12px;">📝 Rumusan / Ulasan Aktiviti</div>
      <div style="background:rgba(255,255,255,0.02);border:1px solid var(--bdr);border-radius:10px;padding:10px;">${reportsHtml}</div>
      <div style="margin-top:12px;display:flex;gap:6px;">
@@ -3454,8 +3539,8 @@ function applyCustomLogo(){
     else { el.innerHTML = 'ET'; el.style.background = ''; }
   });
   document.querySelectorAll('.custom-logo-display').forEach(el => {
-    if (logo) el.innerHTML = `<img src="${logo}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
-    else el.innerHTML = '';
+    if (logo) { el.innerHTML = `<img src="${logo}" style="width:100%;height:100%;object-fit:cover;display:block;">`; el.style.display=''; }
+    else { el.innerHTML = ''; el.style.display='none'; }
   });
   
   const preview = document.getElementById('setting-logo-preview');
@@ -3479,6 +3564,261 @@ function exportCSVLocal(){
   const users=DB.get('users')||[],atts=DB.get('attendance')||[]; let csv='\uFEFFNama,Matrik,Kumpulan,Jumlah Hadir,Peratus\n';
   users.forEach(u=>{ const ua=atts.filter(a=>a.matric===u.matric),p=ua.filter(a=>a.status==='present').length,pct=ua.length?Math.round(p/ua.length*100):0; csv+=`"${u.name}","${u.matric}","${u.class}",${p},${pct}%\n`; });
   const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=`EduTrack_Laporan.csv`; a.click();
+}
+
+// ═══ PENJANA LAPORAN ANALISIS (PDF / WORD / EXCEL) ═══
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Gagal memuat: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function gatherReportData() {
+  const users = DB.get('users') || [];
+  const acts = DB.get('activities') || [];
+  const atts = DB.get('attendance') || [];
+  const anns = DB.get('announcements') || [];
+  const visits = DB.get('visitor_log') || [];
+
+  const students = users.map(u => {
+    const ua = atts.filter(a => a.matric === u.matric);
+    const p = ua.filter(a => a.status === 'present').length;
+    const pct = ua.length ? Math.round(p / ua.length * 100) : 0;
+    return { name: u.name, matric: u.matric, progtype: u.progtype, semester: u.semester, class: u.class, attended: p, totalSessions: ua.length, pct, behScore: u.behavior?.score ?? 100 };
+  });
+
+  const avgAtt = students.length ? Math.round(students.reduce((s,x)=>s+x.pct,0) / students.length) : 0;
+  const avgBeh = students.length ? Math.round(students.reduce((s,x)=>s+x.behScore,0) / students.length) : 0;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const visitToday = visits.filter(v => (v.time||'').slice(0,10) === todayStr).length;
+
+  const distBuckets = { tinggi: 0, sederhana: 0, rendah: 0 };
+  students.forEach(s => { if (s.pct >= 80) distBuckets.tinggi++; else if (s.pct >= 60) distBuckets.sederhana++; else distBuckets.rendah++; });
+
+  return {
+    generatedAt: new Date(),
+    summary: {
+      totalStudents: users.length,
+      totalActivities: acts.length,
+      totalAnnouncements: anns.length,
+      avgAttendance: avgAtt,
+      avgBehavior: avgBeh,
+      visitToday, visitTotal: visits.length
+    },
+    students, activities: acts, attendance: atts, announcements: anns, visitors: visits, distBuckets
+  };
+}
+
+async function downloadReportExcel() {
+  if (PEMANTAU) return toast('⚠️ Akses Terhad Pemantau: Tiada kebenaran mengeksport data.', 'error');
+  toast('Menjana laporan Excel...', 'warn');
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const d = gatherReportData();
+    const wb = XLSX.utils.book_new();
+
+    const wsSummary = XLSX.utils.aoa_to_sheet([
+      ['Laporan Analisis Sistem — EduTrack'],
+      ['Dijana pada', d.generatedAt.toLocaleString('ms-MY')],
+      [],
+      ['Ringkasan', 'Nilai'],
+      ['Jumlah Pelajar', d.summary.totalStudents],
+      ['Jumlah Aktiviti', d.summary.totalActivities],
+      ['Jumlah Pengumuman', d.summary.totalAnnouncements],
+      ['Purata Kehadiran (%)', d.summary.avgAttendance],
+      ['Purata Skor Sahsiah', d.summary.avgBehavior],
+      ['Pelawat Hari Ini', d.summary.visitToday],
+      ['Jumlah Pelawat Keseluruhan', d.summary.visitTotal],
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
+
+    const wsStu = XLSX.utils.json_to_sheet(d.students.map(s => ({
+      Nama: s.name, Matrik: s.matric, Program: s.progtype, Semester: s.semester, Kumpulan: s.class,
+      'Sesi Hadir': s.attended, 'Jumlah Sesi': s.totalSessions, 'Peratus Kehadiran (%)': s.pct, 'Skor Sahsiah': s.behScore
+    })));
+    XLSX.utils.book_append_sheet(wb, wsStu, 'Pelajar');
+
+    const wsAtt = XLSX.utils.json_to_sheet(d.attendance.map(a => {
+      const act = d.activities.find(x => x.id === a.actId);
+      return { Matrik: a.matric, Aktiviti: act ? act.name : a.actId, Tarikh: fmtDate(a.date), Status: a.status === 'present' ? 'Hadir' : 'Tidak Hadir', 'Direkod Oleh': a.by };
+    }));
+    XLSX.utils.book_append_sheet(wb, wsAtt, 'Kehadiran');
+
+    const wsAct = XLSX.utils.json_to_sheet(d.activities.map(a => ({
+      Nama: a.name, Jenis: a.type, Tarikh: a.date, Masa: a.time, Lokasi: a.loc, Status: a.status
+    })));
+    XLSX.utils.book_append_sheet(wb, wsAct, 'Aktiviti');
+
+    const wsAnn = XLSX.utils.json_to_sheet(d.announcements.map(a => ({
+      Tajuk: a.title, Kandungan: a.content, Tarikh: fmtDate(a.date), Penulis: a.by
+    })));
+    XLSX.utils.book_append_sheet(wb, wsAnn, 'Pengumuman');
+
+    const wsVis = XLSX.utils.json_to_sheet(d.visitors.map(v => ({
+      Nama: v.name, Matrik: v.matric, Masa: fmtDate(v.time), Aktiviti: v.activity
+    })));
+    XLSX.utils.book_append_sheet(wb, wsVis, 'PelawatLog');
+
+    XLSX.writeFile(wb, `EduTrack_Laporan_${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast('✅ Laporan Excel dimuat turun!', 'success');
+  } catch (e) {
+    toast('⚠️ Gagal menjana Excel: ' + e.message, 'error');
+  }
+}
+
+async function downloadReportPDF() {
+  if (PEMANTAU) return toast('⚠️ Akses Terhad Pemantau: Tiada kebenaran mengeksport data.', 'error');
+  toast('Menjana laporan PDF...', 'warn');
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+    const d = gatherReportData();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const accent = [0, 200, 220];
+
+    // Tajuk
+    doc.setFillColor(10, 18, 44);
+    doc.rect(0, 0, pageW, 70, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(18); doc.setFont(undefined, 'bold');
+    doc.text('Laporan Analisis Sistem — EduTrack', 30, 35);
+    doc.setFontSize(10); doc.setFont(undefined, 'normal');
+    doc.text('Dijana pada: ' + d.generatedAt.toLocaleString('ms-MY'), 30, 55);
+
+    // Kad ringkasan (infografik)
+    const cards = [
+      { label: 'Jumlah Pelajar', val: d.summary.totalStudents },
+      { label: 'Purata Kehadiran', val: d.summary.avgAttendance + '%' },
+      { label: 'Purata Sahsiah', val: d.summary.avgBehavior + '/100' },
+      { label: 'Jumlah Aktiviti', val: d.summary.totalActivities },
+      { label: 'Pelawat Hari Ini', val: d.summary.visitToday },
+      { label: 'Jumlah Pelawat', val: d.summary.visitTotal },
+    ];
+    const cardW = (pageW - 60 - 30) / 3, cardH = 55;
+    cards.forEach((c, i) => {
+      const col = i % 3, row = Math.floor(i / 3);
+      const x = 30 + col * (cardW + 15), y = 90 + row * (cardH + 12);
+      doc.setFillColor(245, 248, 255);
+      doc.setDrawColor(accent[0], accent[1], accent[2]);
+      doc.roundedRect(x, y, cardW, cardH, 6, 6, 'FD');
+      doc.setTextColor(30, 40, 70);
+      doc.setFontSize(16); doc.setFont(undefined, 'bold');
+      doc.text(String(c.val), x + 12, y + 28);
+      doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(100,110,130);
+      doc.text(c.label, x + 12, y + 44);
+    });
+
+    // Carta agihan kehadiran (bar chart ringkas)
+    let yPos = 90 + 2 * (cardH + 12) + 20;
+    doc.setTextColor(20,20,20); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+    doc.text('Agihan Kehadiran Pelajar', 30, yPos);
+    yPos += 15;
+    const total = d.students.length || 1;
+    const buckets = [
+      { label: 'Tinggi (≥80%)', val: d.distBuckets.tinggi, color: [16,185,129] },
+      { label: 'Sederhana (60-79%)', val: d.distBuckets.sederhana, color: [245,158,11] },
+      { label: 'Rendah (<60%)', val: d.distBuckets.rendah, color: [239,68,68] },
+    ];
+    const barMaxW = pageW - 220;
+    buckets.forEach((b, i) => {
+      const by = yPos + i * 22;
+      const bw = Math.max(2, (b.val/total) * barMaxW);
+      doc.setFontSize(9); doc.setFont(undefined, 'normal'); doc.setTextColor(60,60,60);
+      doc.text(b.label, 30, by + 9);
+      doc.setFillColor(b.color[0], b.color[1], b.color[2]);
+      doc.rect(160, by, bw, 12, 'F');
+      doc.text(`${b.val} pelajar`, 165 + bw, by + 9);
+    });
+    yPos += buckets.length * 22 + 15;
+
+    // Jadual pelajar
+    doc.autoTable({
+      startY: yPos,
+      head: [['Nama', 'Matrik', 'Kumpulan', 'Kehadiran %', 'Sahsiah']],
+      body: d.students.map(s => [s.name, s.matric, s.class, s.pct + '%', s.behScore]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [10, 18, 44] },
+      margin: { left: 30, right: 30 }
+    });
+
+    // Log pelawat terkini (halaman baru)
+    doc.addPage();
+    doc.setTextColor(20,20,20); doc.setFontSize(13); doc.setFont(undefined, 'bold');
+    doc.text('Log Pelawat Terkini', 30, 30);
+    doc.autoTable({
+      startY: 40,
+      head: [['Nama', 'Matrik', 'Masa', 'Aktiviti']],
+      body: [...d.visitors].reverse().slice(0, 50).map(v => [v.name, v.matric, fmtDate(v.time), v.activity]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [10, 18, 44] },
+      margin: { left: 30, right: 30 }
+    });
+
+    doc.save(`EduTrack_Laporan_${new Date().toISOString().slice(0,10)}.pdf`);
+    toast('✅ Laporan PDF dimuat turun!', 'success');
+  } catch (e) {
+    toast('⚠️ Gagal menjana PDF: ' + e.message, 'error');
+  }
+}
+
+function downloadReportWord() {
+  if (PEMANTAU) return toast('⚠️ Akses Terhad Pemantau: Tiada kebenaran mengeksport data.', 'error');
+  toast('Menjana laporan Word...', 'warn');
+  try {
+    const d = gatherReportData();
+    const studentRows = d.students.map(s => `<tr><td>${s.name}</td><td>${s.matric}</td><td>${s.class}</td><td>${s.pct}%</td><td>${s.behScore}</td></tr>`).join('');
+    const visitorRows = [...d.visitors].reverse().slice(0, 50).map(v => `<tr><td>${v.name}</td><td>${v.matric}</td><td>${fmtDate(v.time)}</td><td>${v.activity}</td></tr>`).join('');
+    const annRows = d.announcements.map(a => `<tr><td>${a.title}</td><td>${fmtDate(a.date)}</td><td>${a.by}</td></tr>`).join('');
+
+    const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"><title>Laporan EduTrack</title>
+    <style>
+      body{font-family:Calibri,Arial,sans-serif;font-size:12px;color:#222;}
+      h1{color:#0a122c;border-bottom:3px solid #00c8dc;padding-bottom:6px;}
+      h2{color:#0a122c;margin-top:24px;}
+      table{border-collapse:collapse;width:100%;margin-top:8px;}
+      th,td{border:1px solid #ccc;padding:6px 8px;font-size:11px;text-align:left;}
+      th{background:#0a122c;color:#fff;}
+      .summary{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;}
+      .box{border:1px solid #00c8dc;border-radius:6px;padding:10px 14px;min-width:150px;}
+      .box .num{font-size:20px;font-weight:bold;color:#0a122c;}
+      .box .lbl{font-size:11px;color:#666;}
+    </style></head>
+    <body>
+      <h1>Laporan Analisis Sistem — EduTrack</h1>
+      <p>Dijana pada: ${d.generatedAt.toLocaleString('ms-MY')}</p>
+      <div class="summary">
+        <div class="box"><div class="num">${d.summary.totalStudents}</div><div class="lbl">Jumlah Pelajar</div></div>
+        <div class="box"><div class="num">${d.summary.avgAttendance}%</div><div class="lbl">Purata Kehadiran</div></div>
+        <div class="box"><div class="num">${d.summary.avgBehavior}/100</div><div class="lbl">Purata Sahsiah</div></div>
+        <div class="box"><div class="num">${d.summary.totalActivities}</div><div class="lbl">Jumlah Aktiviti</div></div>
+        <div class="box"><div class="num">${d.summary.totalAnnouncements}</div><div class="lbl">Jumlah Pengumuman</div></div>
+        <div class="box"><div class="num">${d.summary.visitToday}</div><div class="lbl">Pelawat Hari Ini</div></div>
+        <div class="box"><div class="num">${d.summary.visitTotal}</div><div class="lbl">Jumlah Pelawat</div></div>
+      </div>
+      <h2>Senarai Pelajar</h2>
+      <table><tr><th>Nama</th><th>Matrik</th><th>Kumpulan</th><th>Kehadiran %</th><th>Skor Sahsiah</th></tr>${studentRows}</table>
+      <h2>Pengumuman</h2>
+      <table><tr><th>Tajuk</th><th>Tarikh</th><th>Penulis</th></tr>${annRows}</table>
+      <h2>Log Pelawat Terkini</h2>
+      <table><tr><th>Nama</th><th>Matrik</th><th>Masa</th><th>Aktiviti</th></tr>${visitorRows}</table>
+    </body></html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `EduTrack_Laporan_${new Date().toISOString().slice(0,10)}.doc`;
+    a.click();
+    toast('✅ Laporan Word dimuat turun!', 'success');
+  } catch (e) {
+    toast('⚠️ Gagal menjana Word: ' + e.message, 'error');
+  }
 }
 
 function openM(id){document.getElementById(id).classList.add('show');}
@@ -3596,6 +3936,23 @@ function renderAdminWeeklyChart() {
 }
 
 // 📢 ADD ANNOUNCEMENT BORANG MAKLUMAN
+function openEditAnn(id) {
+  if (guardWrite('announcements')) return;
+  const anns = DB.get('announcements') || [];
+  const a = anns.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('m-ann-ttl').textContent = 'Edit Pengumuman';
+  document.getElementById('ann-id-hidden').value = a.id;
+  document.getElementById('ann-title-in').value = a.title;
+  document.getElementById('ann-content-in').value = a.content;
+  document.getElementById('ann-video-in').value = a.video || '';
+  document.getElementById('ann-link-in').value = a.link || '';
+  tempAnnImage = a.image || '';
+  const preview = document.getElementById('ann-img-preview');
+  preview.innerHTML = a.image ? `<img src="${a.image}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;display:block;">` : '📢';
+  openM('m-ann-form');
+}
+
 function openAddAnn() {
   if (guardWrite('announcements')) return;
   document.getElementById('m-ann-ttl').textContent = 'Tambah Pengumuman';
@@ -3617,24 +3974,44 @@ async function saveAnnouncement() {
   if (guardWrite('announcements')) return;
   const title = document.getElementById('ann-title-in').value.trim(), content = document.getElementById('ann-content-in').value.trim();
   if (!title || !content) return toast('Sila isi maklumat', 'error');
-  
+
+  const existingId = document.getElementById('ann-id-hidden').value;
+  const anns = DB.get('announcements') || [];
+
+  if (existingId) {
+    const idx = anns.findIndex(a => a.id === existingId);
+    if (idx === -1) return toast('Pengumuman tidak ditemui.', 'error');
+    const updated = { ...anns[idx], title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), link: document.getElementById('ann-link-in').value.trim() };
+    anns[idx] = updated;
+    toast('Mengemaskini pengumuman...', 'warn');
+    const res = await cloudPost("addAnnouncementBulkOverwrite", { list: anns });
+    if(res.status === "error") return toast(res.message, 'error');
+    DB.set('announcements', anns);
+    closeM('m-ann-form'); window._annSig = null; renderAnnouncements(); toast('Pengumuman Dikemaskini!', 'success');
+    return;
+  }
+
   const payload = { id: 'ann_'+Date.now(), title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), link: document.getElementById('ann-link-in').value.trim(), date: new Date().toISOString(), by: PEMANTAU?'Pemantau':'Admin' };
   toast('Menerbitkan pengumuman ke cloud...', 'warn');
-  
+
   const res = await cloudPost("addAnnouncement", payload);
   if(res.status === "error") return toast(res.message, 'error');
-  
-  const anns = DB.get('announcements') || []; anns.push(payload); DB.set('announcements', anns);
-  closeM('m-ann-form'); renderAnnouncements(); toast('Pengumuman Diterbitkan!', 'success');
+
+  anns.push(payload); DB.set('announcements', anns);
+  closeM('m-ann-form'); window._annSig = null; renderAnnouncements(); toast('Pengumuman Diterbitkan!', 'success');
 }
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
-  let id = null;
+  // YouTube
   let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
-  if (m) id = m[1];
-  if (!id) return null;
-  return `https://www.youtube.com/embed/${id}`;
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  // Google Drive: https://drive.google.com/file/d/FILEID/view  atau  /open?id=FILEID  atau  /uc?id=FILEID
+  m = url.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  m = url.match(/drive\.google\.com\/(?:open|uc)\?id=([A-Za-z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  return null;
 }
 
 function renderAnnouncements() {
@@ -3682,6 +4059,7 @@ function renderAnnouncements() {
         ${videoHtml}
         ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
         <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="btn bs btn-sm" style="padding:4px 8px; font-size:10px;" onclick="openEditAnn('${a.id}')">✏️ Edit</button>
           <button class="btn bd btn-sm pemantau-hidden" style="padding:4px 8px; font-size:10px;" onclick="delAnn('${a.id}')"> Padam</button>
         </div>
       </div>`;
@@ -3821,14 +4199,14 @@ window.addEventListener('load', async () => {
   }
 });
 
-// AUTO-SYNC BERKALA (setiap 5 saat) - supaya data segerak automatik antara peranti
+// AUTO-SYNC SENYAP (setiap 10 saat) - supaya semua peranti seragam tanpa notifikasi
 let _autoSyncInterval = setInterval(() => {
   if (API_URL && !document.hidden && document.getElementById('m-confirm')?.style.display !== 'flex') {
     syncAllCloud(true).then(() => {
-      // refresh paparan semasa secara senyap selepas data baru tiba
       try {
         if (typeof refreshAdmDash === 'function' && document.getElementById('view-admin')?.classList.contains('active')) refreshAdmDash();
         if (typeof renderAnnouncements === 'function') renderAnnouncements();
+        if (typeof renderVisitorStats === 'function') renderVisitorStats();
         if (typeof applyTheme === 'function') {
           const t = DB.get('app_theme');
           if (t && JSON.stringify(t) !== JSON.stringify(activeTheme)) { activeTheme = t; applyTheme(activeTheme); }
@@ -3836,7 +4214,7 @@ let _autoSyncInterval = setInterval(() => {
       } catch(e) {}
     }).catch(()=>{});
   }
-}, 5000);
+}, 10000);
 
 // Bila tab kembali aktif (pengguna tukar balik dari app/tab lain), terus sync
 document.addEventListener('visibilitychange', () => {
