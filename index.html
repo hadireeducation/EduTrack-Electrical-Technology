@@ -754,7 +754,7 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     <div class="card" style="border-color: rgba(139,92,246,0.3);">
       <div class="card-hdr" style="color: #a78bfa;">
         <span>📊 Dashboard Informasi & Pengumuman Program</span>
-        <button class="btn ba btn-sm pemantau-hidden" style="background: var(--a2); color: #fff;" onclick="openAddAnn()">➕ Tambah</button>
+        <button class="btn ba btn-sm" style="background: var(--a2); color: #fff;" onclick="openAddAnn()">➕ Tambah</button>
       </div>
       <div id="adm-ann-list" style="max-height: 600px; overflow-y: auto;"></div>
     </div>
@@ -1101,6 +1101,16 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       </select>
     </div>
     <div class="fg"><label class="fl">Lokasi</label><input type="text" class="fi" id="ea-loc" placeholder="Cth: Makmal C3-01, Dewan Utama..."></div>
+    <div class="fg">
+      <label class="fl">Kumpulan Sasaran (Pilih yang perlu hadir)</label>
+      <div id="ea-groups-wrap" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--bdr);border-radius:10px;min-height:44px;">
+        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;cursor:pointer;padding:4px 10px;border-radius:20px;background:rgba(0,240,255,0.08);border:1px solid rgba(0,240,255,0.2);color:var(--ac);">
+          <input type="checkbox" id="ea-grp-all" value="Semua" onchange="toggleAllGroups(this)" style="accent-color:var(--ac);"> Semua Pelajar
+        </label>
+        <div id="ea-grp-checkboxes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+      <div style="font-size:10px;color:var(--t2);margin-top:4px;">💡 Pilih "Semua Pelajar" atau tandakan kumpulan tertentu. Ini mempengaruhi laporan kehadiran.</div>
+    </div>
     <div class="fg"><label class="fl">Status Awal</label><select class="fs" id="ea-status"><option value="Aktif">🟢 Aktif (Buka)</option><option value="Selesai">✅ Selesai (Tutup)</option><option value="Dibatalkan">❌ Dibatalkan</option></select></div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-act')">Batal</button><button class="btn ba" style="flex:2;" onclick="saveAct()">💾 Simpan Aktiviti</button></div>
   </div>
@@ -1178,16 +1188,30 @@ body.mode-pemantau .pemantau-only { display: block !important; }
   <div class="modal">
     <div class="mhdr"><span id="m-ann-ttl">Tambah Pengumuman</span><button class="mx" onclick="closeM('m-ann-form')">✕</button></div>
     <input type="hidden" id="ann-id-hidden">
-    <div class="fg" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:8px;background:rgba(255,255,255,0.02);border:1px dashed var(--bdr);border-radius:10px;">
-      <div id="ann-img-preview" style="width:50px;height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);font-size:16px;">📢</div>
+    <div class="fg" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;padding:8px;background:rgba(255,255,255,0.02);border:1px dashed var(--bdr);border-radius:10px;">
+      <div id="ann-img-preview" style="width:50px;height:50px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);font-size:16px;flex-shrink:0;">📢</div>
       <div style="flex:1;">
         <label class="fl" style="margin-bottom:4px;">Gambar Lampiran (Pilihan)</label>
-        <label class="btn bs btn-sm" style="position:relative;overflow:hidden;cursor:pointer;">📷 Muat Naik Gambar<input type="file" id="ann-img-input" accept="image/*" style="position:absolute;top:0;left:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="previewAnnImage(event)"></label>
+        <div style="display:flex;gap:5px;margin-bottom:6px;">
+          <button id="ann-img-tab-upload" class="btn btn-sm" style="flex:1;font-size:10px;background:rgba(0,240,255,0.12);color:var(--ac);border:1px solid rgba(0,240,255,0.3);" onclick="switchAnnImgTab('upload')">📷 Muat Naik</button>
+          <button id="ann-img-tab-url" class="btn btn-sm" style="flex:1;font-size:10px;background:rgba(255,255,255,0.05);color:var(--t2);border:1px solid var(--bdr);" onclick="switchAnnImgTab('url')">🔗 Pautan URL</button>
+        </div>
+        <div id="ann-img-panel-upload">
+          <label class="btn bs btn-sm" style="position:relative;overflow:hidden;cursor:pointer;display:inline-flex;">📂 Pilih Fail Gambar<input type="file" id="ann-img-input" accept="image/*" style="position:absolute;top:0;left:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="previewAnnImage(event)"></label>
+        </div>
+        <div id="ann-img-panel-url" style="display:none;">
+          <input type="text" class="fi" id="ann-img-url-in" placeholder="https://example.com/gambar.jpg" style="font-size:12px;" oninput="previewAnnImageUrl(this.value)">
+          <div style="font-size:10px;color:var(--t2);margin-top:3px;">💡 Masukkan URL gambar terus (JPG, PNG, GIF, WebP)</div>
+        </div>
+        <div id="ann-img-clear-btn" style="display:none;margin-top:5px;">
+          <button class="btn bd btn-sm" style="font-size:10px;padding:3px 8px;" onclick="clearAnnImage()">🗑 Buang Gambar</button>
+        </div>
       </div>
     </div>
     <div class="fg"><label class="fl">Tajuk Pengumuman</label><input type="text" class="fi" id="ann-title-in" placeholder="Cth: Taklimat Keselamatan Bengkel..."></div>
     <div class="fg"><label class="fl">Kandungan / Perincian</label><textarea class="fta" id="ann-content-in" placeholder="Tulis pengumuman di sini..."></textarea></div>
     <div class="fg"><label class="fl">Pautan Video (YouTube atau Google Drive) (Pilihan) — akan dipaparkan terus dengan audio</label><input type="text" class="fi" id="ann-video-in" placeholder="https://www.youtube.com/watch?v=... atau https://drive.google.com/file/d/.../view"></div>
+    <div class="fg"><label class="fl">Pautan Audio (Pilihan) — fail audio (.mp3/.m4a/.wav) atau pautan Google Drive</label><input type="text" class="fi" id="ann-audio-in" placeholder="https://... .mp3 atau https://drive.google.com/file/d/.../view"></div>
     <div class="fg"><label class="fl">Pautan Dokumen / Tindakan (Pilihan)</label><input type="text" class="fi" id="ann-link-in" placeholder="https://drive.google.com/..."></div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-ann-form')">Batal</button><button class="btn bp" style="flex:2;" onclick="saveAnnouncement()">💾 Terbitkan Makluman</button></div>
   </div>
@@ -1333,7 +1357,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbwdqvsngWU2hvtKGvLhAwT87MBrVXEDnGkHHfr1VtPKEyyEhaWgll_ECN5gIzkodufi/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzfRIMlmaLRMzLfXAllFtGBGH5Aezrci8yb65w2x_BijYilEQbZojYjW7tyuiBRWmm7/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1609,25 +1633,33 @@ async function syncAllCloud(silent = false) {
     const res = await fetch(`${API_URL}?action=getAllData`, { method: "GET", mode: "cors" });
     const d = await res.json();
     if (d && d.users !== undefined) {
+      // Ambil senarai aktiviti tempatan DAHULU sebelum cache dibersihkan (untuk lindungi timer yang sedang berjalan)
+      const localActsBeforeSync = DB.get('activities') || [];
       // Cloud-first: buang cache lama, guna data terus dari Sheets
       DB.clearCache();
-
-      const mappedUsers = (d.users || []).map(u => ({
-        name: u.Nama||'', matric: u.Matrik||'', progtype: u.Program||'', semester: u.Semester||'',
-        class: u.Kumpulan||'', phone: u.Telefon||'', email: u.Email||'', pass: u.Katalaluan||'',
-        registered: u.TarikhDaftar||new Date().toISOString(), avatar: u.Avatar||'',
-        behavior: { score: parseInt(u.SkorSahsiah)||100, tags: u.Tags ? String(u.Tags).split(",").filter(Boolean) : [], note: u.Nota||'' }
-      }));
-      const mappedActs = (d.activities || []).map(a => ({
-        id: a.ID||'', type: a.Jenis||'', name: a.Nama||'', desc: a.Penerangan||'', date: a.Tarikh||'',
-        time: a.Masa||'', loc: a.Lokasi||'', status: a.Status||'Selesai', pin: a.PIN ? a.PIN.toString() : '',
-        duration: parseInt(a.Duration)||0, activatedAt: a.ActivatedAt||null, timerStartedAt: a.TimerStartedAt||null
-      })).filter(a => a.id && !a.id.startsWith('report_'));
+      const mappedActs = (d.activities || []).map(a => {
+        const cloudAct = {
+          id: a.ID||'', type: a.Jenis||'', name: a.Nama||'', desc: a.Penerangan||'', date: a.Tarikh||'',
+          time: a.Masa||'', loc: a.Lokasi||'', status: a.Status||'Selesai', pin: a.PIN ? a.PIN.toString() : '',
+          duration: parseInt(a.Duration)||0, activatedAt: a.ActivatedAt||null, timerStartedAt: a.TimerStartedAt||null,
+          targetGroups: a.KumpulanSasaran ? (typeof a.KumpulanSasaran === 'string' ? a.KumpulanSasaran.split(',').map(s=>s.trim()).filter(Boolean) : a.KumpulanSasaran) : ['Semua']
+        };
+        // PEMBETULAN ISU 3: Jika timer sedang berjalan secara tempatan, jangan biarkan sync cloud menimpa timerStartedAt & activatedAt
+        const localAct = localActsBeforeSync.find(la => la.id === cloudAct.id);
+        if (localAct && localAct.timerStartedAt && cloudAct.status === 'Aktif') {
+          // Gunakan nilai tempatan jika lebih baharu atau cloud tiada nilai
+          if (!cloudAct.timerStartedAt || new Date(localAct.timerStartedAt) > new Date(cloudAct.timerStartedAt)) {
+            cloudAct.timerStartedAt = localAct.timerStartedAt;
+            cloudAct.activatedAt = localAct.activatedAt || cloudAct.activatedAt;
+          }
+        }
+        return cloudAct;
+      }).filter(a => a.id && !a.id.startsWith('report_'));
       const mappedAtts = (d.attendance || []).map(at => ({
         id: at.ID||'', matric: at.Matrik||'', actId: at.AktivitiID||'', date: at.TarikhMasa||'', status: at.Status||'present', by: at.DirekodOleh||''
       }));
       const mappedAnns = (d.announcements || []).map(an => ({
-        id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', link: an.Pautan||'', by: an.Penulis||''
+        id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', audio: an.Audio||'', link: an.Pautan||'', by: an.Penulis||''
       }));
       const mappedVisitors = (d.visitors || []).map(v => ({
         matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'', activity: v.Aktiviti||''
@@ -1762,13 +1794,14 @@ function doPost(e) {
     if (action === "addActivity") {
       let sheet = doc.getSheetByName(SHEET_NAME_ACT) || doc.insertSheet(SHEET_NAME_ACT);
       if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["ID", "Jenis", "Nama", "Penerangan", "Tarikh", "Masa", "Lokasi", "Status", "PIN", "Duration", "ActivatedAt", "TimerStartedAt"]);
+        sheet.appendRow(["ID", "Jenis", "Nama", "Penerangan", "Tarikh", "Masa", "Lokasi", "Status", "PIN", "Duration", "ActivatedAt", "TimerStartedAt", "KumpulanSasaran"]);
       }
       deleteRowByValue(sheet, 1, postData.id);
       sheet.appendRow([
         postData.id, postData.type, postData.name, postData.desc || "", 
         postData.date, postData.time || "", postData.loc || "", 
-        postData.status, postData.pin || "", postData.duration || 0, postData.activatedAt || "", postData.timerStartedAt || ""
+        postData.status, postData.pin || "", postData.duration || 0, postData.activatedAt || "", postData.timerStartedAt || "",
+        Array.isArray(postData.targetGroups) ? postData.targetGroups.join(',') : (postData.targetGroups || 'Semua')
       ]);
       return ContentService.createTextOutput(JSON.stringify({status: "success"}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -1813,9 +1846,9 @@ function doPost(e) {
       // Digunakan untuk operasi padam pengumuman: tulis semula keseluruhan senarai
       let sheet = doc.getSheetByName(SHEET_NAME_ANN) || doc.insertSheet(SHEET_NAME_ANN);
       sheet.clear();
-      sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Pautan", "Penulis"]);
+      sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Audio", "Pautan", "Penulis"]);
       (postData.list || []).forEach(an => {
-        sheet.appendRow([an.id, an.title, an.content, an.date, an.image || "", an.video || "", an.link || "", an.by]);
+        sheet.appendRow([an.id, an.title, an.content, an.date, an.image || "", an.video || "", an.audio || "", an.link || "", an.by]);
       });
       return ContentService.createTextOutput(JSON.stringify({status: "success"}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -1909,11 +1942,11 @@ function doPost(e) {
     if (action === "addAnnouncement") {
       let sheet = doc.getSheetByName(SHEET_NAME_ANN) || doc.insertSheet(SHEET_NAME_ANN);
       if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Pautan", "Penulis"]);
+        sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Audio", "Pautan", "Penulis"]);
       }
       sheet.appendRow([
         postData.id, postData.title, postData.content, 
-        postData.date, postData.image || "", postData.video || "", postData.link || "", postData.by
+        postData.date, postData.image || "", postData.video || "", postData.audio || "", postData.link || "", postData.by
       ]);
       return ContentService.createTextOutput(JSON.stringify({status: "success"}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -2080,9 +2113,10 @@ function logVisit(u, roleLabel) {
   try {
     let activityLabel = roleLabel;
     if (!activityLabel) {
+      // Pelajar: tunjukkan aktiviti aktif semasa log masuk
       const acts = DB.get('activities') || [];
       const activeAct = acts.find(a => a.status === 'Aktif');
-      activityLabel = activeAct ? activeAct.name : '—';
+      activityLabel = activeAct ? `📚 ${activeAct.name}` : '— Tiada Aktiviti Aktif';
     }
     const now = new Date();
     const entry = {
@@ -2114,7 +2148,7 @@ async function doAdminLogin(){
     // Admin Utama — tiada sekatan sesi (boleh akses dari mana-mana)
     ADMIN=true; PEMANTAU=false; IS_MAIN_ADMIN=true; IS_SUB_ADMIN=false;
     DB.set('session_a',true); DB.set('session_p',false); DB.set('session_role','main_admin');
-    logVisit({matric:'ADMIN', name:'Admin Utama (' + u + ')'}, 'Admin');
+    logVisit({matric:'ADMIN', name:'Admin Utama (' + u + ')'}, '🛡️ Admin Utama — Log Masuk Sistem');
     enterAdmin();
   } else if(matchedSubAdmin) {
     // Admin Tambahan — amaran jika sesi aktif
@@ -2122,7 +2156,7 @@ async function doAdminLogin(){
     if (!ok) return toast('Log masuk dibatalkan.', 'warn');
     ADMIN=true; PEMANTAU=false; IS_MAIN_ADMIN=false; IS_SUB_ADMIN=true;
     DB.set('session_a',true); DB.set('session_p',false); DB.set('session_role','sub_admin'); DB.set('session_lock_key','adm_' + matchedSubAdmin.user);
-    logVisit({matric:'SUBADM', name:'Sub-Admin (' + matchedSubAdmin.user + ')'}, 'Admin');
+    logVisit({matric:'SUBADM', name:'Sub-Admin (' + matchedSubAdmin.user + ')'}, '🛡️ Admin Tambahan — Log Masuk Sistem');
     enterAdmin();
   } else if(matchedPemantau){
     // Pemantau — amaran jika sesi aktif
@@ -2130,7 +2164,7 @@ async function doAdminLogin(){
     if (!ok) return toast('Log masuk dibatalkan.', 'warn');
     ADMIN=false; PEMANTAU=true; IS_MAIN_ADMIN=false; IS_SUB_ADMIN=false;
     DB.set('session_a',false); DB.set('session_p',true); DB.set('session_role','pemantau'); DB.set('session_lock_key','pem_' + matchedPemantau.user);
-    logVisit({matric:'PEMANTAU', name:'Pemantau (' + matchedPemantau.user + ')'}, 'Pemantau');
+    logVisit({matric:'PEMANTAU', name:'Pemantau (' + matchedPemantau.user + ')'}, '👁️ Pemantau — Log Masuk Sistem');
     enterAdmin();
   } else {
     playToneFeedback('error');
@@ -2789,6 +2823,9 @@ function renderActList(){
     const sb=a.status==='Aktif'?'bok':a.status==='Selesai'?'bdone':'bcanc';
     const pinBadge = a.pin ? `<span style="font-family:'Space Mono'; background:rgba(0,240,255,0.1); color:var(--ac); border:1px solid rgba(0,240,255,0.25); padding:2px 7px; border-radius:6px; font-size:11px; font-weight:700;">PIN: ${a.pin}</span>` : `<span style="font-size:10px; color:var(--t2);">Tiada PIN</span>`;
     const durationInfo = a.duration > 0 ? `<span style="font-size:11px; color:var(--t2); background:rgba(255,255,255,0.03); padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.05);">⏱️ Limit: ${a.duration}m</span>` : '';
+    const grpLabel = (a.targetGroups && a.targetGroups.length > 0 && !(a.targetGroups.length===1 && a.targetGroups[0]==='Semua'))
+      ? `<span style="font-size:10px;color:#a78bfa;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.25);padding:2px 7px;border-radius:6px;">👥 ${a.targetGroups.join(', ')}</span>`
+      : `<span style="font-size:10px;color:var(--t2);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);padding:2px 7px;border-radius:6px;">👥 Semua Pelajar</span>`;
     const countdownTicker = `<div class="remaining-ticker" id="adm-act-ticker-${a.id}">Mengira...</div>`;
 
     // Kawalan masa manual — semua peranan (admin, sub-admin, pemantau) boleh
@@ -2814,7 +2851,7 @@ function renderActList(){
         <div style="flex:1;min-width:0;">
           <div class="acard-name">${a.name}</div>
           <div class="acard-meta">📅 ${a.date} · ⏰ ${a.time||'—'} · 📍 ${a.loc||'—'}</div>
-          <div style="margin-top:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">${pinBadge} ${durationInfo}</div>
+          <div style="margin-top:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">${pinBadge} ${durationInfo} ${grpLabel}</div>
           ${countdownTicker}
         </div>
         <div class="acard-bdg">
@@ -2896,8 +2933,43 @@ async function adminStopTimer(id) {
   });
 }
 
-function openAddAct(){if(guardWrite('activities'))return;document.getElementById('m-act-ttl').textContent='Tambah Aktiviti / Program';document.getElementById('ea-id').value='';document.getElementById('ea-type').value='Aktiviti';document.getElementById('ea-name').value='';document.getElementById('ea-desc').value='';document.getElementById('ea-date').value=todayStr();document.getElementById('ea-time').value='';document.getElementById('ea-duration').value='0';document.getElementById('ea-loc').value='';document.getElementById('ea-status').value='Aktif';openM('m-act');}
-function openEditAct(id){if(guardWrite('activities'))return;const a=(DB.get('activities')||[]).find(x=>x.id===id);if(!a)return;document.getElementById('m-act-ttl').textContent='Edit Aktiviti / Program';document.getElementById('ea-id').value=id;document.getElementById('ea-type').value=a.type;document.getElementById('ea-name').value=a.name;document.getElementById('ea-desc').value=a.desc||'';document.getElementById('ea-date').value=a.date;document.getElementById('ea-time').value=a.time||'';document.getElementById('ea-duration').value=a.duration || '0';document.getElementById('ea-loc').value=a.loc||'';document.getElementById('ea-status').value=a.status;openM('m-act');}
+function renderGroupCheckboxes(selectedGroups) {
+  const settings = DB.get('settings') || defSets();
+  const groups = settings.groups || [];
+  const allSelected = !selectedGroups || selectedGroups.length === 0 || (selectedGroups.length === 1 && selectedGroups[0] === 'Semua');
+  const allChk = document.getElementById('ea-grp-all');
+  if (allChk) allChk.checked = allSelected;
+  const wrap = document.getElementById('ea-grp-checkboxes');
+  if (!wrap) return;
+  wrap.innerHTML = groups.map(g => {
+    const chk = (!allSelected && selectedGroups && selectedGroups.includes(g));
+    return `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;cursor:pointer;padding:4px 10px;border-radius:20px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);color:#a78bfa;">
+      <input type="checkbox" class="ea-grp-cb" value="${g}" ${chk?'checked':''} onchange="onGroupCbChange()" style="accent-color:#a78bfa;"> ${g}
+    </label>`;
+  }).join('');
+  // Disable kumpulan jika "Semua" dipilih
+  document.querySelectorAll('.ea-grp-cb').forEach(cb => { cb.disabled = allSelected; cb.parentElement.style.opacity = allSelected ? '0.45' : '1'; });
+}
+
+function toggleAllGroups(el) {
+  document.querySelectorAll('.ea-grp-cb').forEach(cb => { cb.checked = false; cb.disabled = el.checked; cb.parentElement.style.opacity = el.checked ? '0.45' : '1'; });
+}
+
+function onGroupCbChange() {
+  const any = [...document.querySelectorAll('.ea-grp-cb')].some(cb => cb.checked);
+  const allChk = document.getElementById('ea-grp-all');
+  if (allChk && any) { allChk.checked = false; }
+}
+
+function getSelectedGroups() {
+  const allChk = document.getElementById('ea-grp-all');
+  if (allChk && allChk.checked) return ['Semua'];
+  const checked = [...document.querySelectorAll('.ea-grp-cb:checked')].map(cb => cb.value);
+  return checked.length > 0 ? checked : ['Semua'];
+}
+
+function openAddAct(){if(guardWrite('activities'))return;document.getElementById('m-act-ttl').textContent='Tambah Aktiviti / Program';document.getElementById('ea-id').value='';document.getElementById('ea-type').value='Aktiviti';document.getElementById('ea-name').value='';document.getElementById('ea-desc').value='';document.getElementById('ea-date').value=todayStr();document.getElementById('ea-time').value='';document.getElementById('ea-duration').value='0';document.getElementById('ea-loc').value='';document.getElementById('ea-status').value='Aktif';renderGroupCheckboxes(['Semua']);openM('m-act');}
+function openEditAct(id){if(guardWrite('activities'))return;const a=(DB.get('activities')||[]).find(x=>x.id===id);if(!a)return;document.getElementById('m-act-ttl').textContent='Edit Aktiviti / Program';document.getElementById('ea-id').value=id;document.getElementById('ea-type').value=a.type;document.getElementById('ea-name').value=a.name;document.getElementById('ea-desc').value=a.desc||'';document.getElementById('ea-date').value=a.date;document.getElementById('ea-time').value=a.time||'';document.getElementById('ea-duration').value=a.duration || '0';document.getElementById('ea-loc').value=a.loc||'';document.getElementById('ea-status').value=a.status;renderGroupCheckboxes(a.targetGroups||['Semua']);openM('m-act');}
 
 async function saveAct(){
   if(guardWrite('activities'))return;
@@ -2915,7 +2987,7 @@ async function saveAct(){
     timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
   }
   
-  const payload = { id: id||'a'+Date.now(), type, name, desc, date, time, duration, activatedAt, timerStartedAt, loc, status, pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
+  const payload = { id: id||'a'+Date.now(), type, name, desc, date, time, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
   toast('Menghantar data aktiviti ke Cloud Database...', 'warn');
   
   const res = await cloudPost("addActivity", payload);
@@ -2926,7 +2998,20 @@ async function saveAct(){
   
   closeM('m-act'); renderActList(); refreshAdmDash(); toast('Aktiviti Berjaya Disimpan!', 'success');
 }
-function delAct(id){if(guardWrite('activities'))return;showConfirm('Padam Aktiviti', 'Pasti padam?', (c)=>{if(c){DB.set('activities',(DB.get('activities')||[]).filter(a=>a.id!==id));cloudPost("deleteActivity",{id}).catch(()=>{});renderActList();refreshAdmDash();}}); }
+function delAct(id){
+  if(guardWrite('activities'))return;
+  showConfirm('Padam Aktiviti', 'Pasti padam aktiviti ini? Rekod kehadiran berkaitan juga akan dipadam.', async (c)=>{
+    if(!c) return;
+    toast('Memadamkan dari cloud...', 'warn');
+    const res = await cloudPost("deleteActivity",{id}).catch(()=>({status:'error',message:'Gagal sambung ke cloud.'}));
+    if(res && res.status === 'error' && API_URL) {
+      return toast('⚠️ Gagal padam dari cloud: ' + (res.message||'Ralat tidak diketahui') + '. Cuba semak sambungan & cuba lagi.', 'error');
+    }
+    DB.set('activities',(DB.get('activities')||[]).filter(a=>a.id!==id));
+    renderActList(); refreshAdmDash();
+    toast('🗑 Aktiviti berjaya dipadam.', 'success');
+  });
+}
 
 /* ══ MODUL RUMUSAN / LAPORAN / ULASAN AKTIVITI ══ */
 let _reportActId = null;
@@ -3935,7 +4020,8 @@ function renderAdminWeeklyChart() {
   container.innerHTML = html;
 }
 
-// 📢 ADD ANNOUNCEMENT BORANG MAKLUMAN
+let tempAnnImage = '';
+
 function openEditAnn(id) {
   if (guardWrite('announcements')) return;
   const anns = DB.get('announcements') || [];
@@ -3946,10 +4032,23 @@ function openEditAnn(id) {
   document.getElementById('ann-title-in').value = a.title;
   document.getElementById('ann-content-in').value = a.content;
   document.getElementById('ann-video-in').value = a.video || '';
+  document.getElementById('ann-audio-in').value = a.audio || '';
   document.getElementById('ann-link-in').value = a.link || '';
   tempAnnImage = a.image || '';
   const preview = document.getElementById('ann-img-preview');
   preview.innerHTML = a.image ? `<img src="${a.image}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;display:block;">` : '📢';
+  const clearBtn = document.getElementById('ann-img-clear-btn');
+  if (clearBtn) clearBtn.style.display = a.image ? '' : 'none';
+  // Tetapkan tab: jika gambar adalah URL luar (bukan data:), tunjukkan tab URL
+  if (a.image && !a.image.startsWith('data:')) {
+    switchAnnImgTab('url');
+    const urlIn = document.getElementById('ann-img-url-in');
+    if (urlIn) urlIn.value = a.image;
+  } else {
+    switchAnnImgTab('upload');
+    const urlIn = document.getElementById('ann-img-url-in');
+    if (urlIn) urlIn.value = '';
+  }
   openM('m-ann-form');
 }
 
@@ -3960,15 +4059,72 @@ function openAddAnn() {
   document.getElementById('ann-title-in').value = '';
   document.getElementById('ann-content-in').value = '';
   document.getElementById('ann-video-in').value = '';
+  document.getElementById('ann-audio-in').value = '';
   document.getElementById('ann-link-in').value = '';
   tempAnnImage = '';
   document.getElementById('ann-img-preview').innerHTML = '📢';
+  const clearBtn = document.getElementById('ann-img-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const urlIn = document.getElementById('ann-img-url-in');
+  if (urlIn) urlIn.value = '';
+  switchAnnImgTab('upload');
   openM('m-ann-form');
 }
 
-let tempAnnImage = '';
+function switchAnnImgTab(tab) {
+  const uploadPanel = document.getElementById('ann-img-panel-upload');
+  const urlPanel = document.getElementById('ann-img-panel-url');
+  const tabUpload = document.getElementById('ann-img-tab-upload');
+  const tabUrl = document.getElementById('ann-img-tab-url');
+  if (tab === 'upload') {
+    uploadPanel.style.display = ''; urlPanel.style.display = 'none';
+    tabUpload.style.background = 'rgba(0,240,255,0.12)'; tabUpload.style.color = 'var(--ac)'; tabUpload.style.borderColor = 'rgba(0,240,255,0.3)';
+    tabUrl.style.background = 'rgba(255,255,255,0.05)'; tabUrl.style.color = 'var(--t2)'; tabUrl.style.borderColor = 'var(--bdr)';
+  } else {
+    uploadPanel.style.display = 'none'; urlPanel.style.display = '';
+    tabUrl.style.background = 'rgba(0,240,255,0.12)'; tabUrl.style.color = 'var(--ac)'; tabUrl.style.borderColor = 'rgba(0,240,255,0.3)';
+    tabUpload.style.background = 'rgba(255,255,255,0.05)'; tabUpload.style.color = 'var(--t2)'; tabUpload.style.borderColor = 'var(--bdr)';
+  }
+}
+
+function previewAnnImageUrl(url) {
+  const preview = document.getElementById('ann-img-preview');
+  const clearBtn = document.getElementById('ann-img-clear-btn');
+  url = url.trim();
+  if (url) {
+    tempAnnImage = url;
+    preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;display:block;" onerror="this.parentElement.innerHTML='❌';window.tempAnnImage='';">`;
+    if (clearBtn) clearBtn.style.display = '';
+  } else {
+    tempAnnImage = '';
+    preview.innerHTML = '📢';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+function clearAnnImage() {
+  tempAnnImage = '';
+  const preview = document.getElementById('ann-img-preview');
+  if (preview) preview.innerHTML = '📢';
+  const urlIn = document.getElementById('ann-img-url-in');
+  if (urlIn) urlIn.value = '';
+  const fileIn = document.getElementById('ann-img-input');
+  if (fileIn) fileIn.value = '';
+  const clearBtn = document.getElementById('ann-img-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
 function previewAnnImage(event) {
-  const file = event.target.files[0]; if (file) { handleAvatarUpload(file, (dataUrl) => { tempAnnImage = dataUrl; const preview = document.getElementById('ann-img-preview'); preview.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;display:block;">`; }); }
+  const file = event.target.files[0];
+  if (file) {
+    handleAvatarUpload(file, (dataUrl) => {
+      tempAnnImage = dataUrl;
+      const preview = document.getElementById('ann-img-preview');
+      preview.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;display:block;">`;
+      const clearBtn = document.getElementById('ann-img-clear-btn');
+      if (clearBtn) clearBtn.style.display = '';
+    });
+  }
 }
 async function saveAnnouncement() {
   if (guardWrite('announcements')) return;
@@ -3981,7 +4137,7 @@ async function saveAnnouncement() {
   if (existingId) {
     const idx = anns.findIndex(a => a.id === existingId);
     if (idx === -1) return toast('Pengumuman tidak ditemui.', 'error');
-    const updated = { ...anns[idx], title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), link: document.getElementById('ann-link-in').value.trim() };
+    const updated = { ...anns[idx], title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), audio: document.getElementById('ann-audio-in').value.trim(), link: document.getElementById('ann-link-in').value.trim() };
     anns[idx] = updated;
     toast('Mengemaskini pengumuman...', 'warn');
     const res = await cloudPost("addAnnouncementBulkOverwrite", { list: anns });
@@ -3991,7 +4147,7 @@ async function saveAnnouncement() {
     return;
   }
 
-  const payload = { id: 'ann_'+Date.now(), title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), link: document.getElementById('ann-link-in').value.trim(), date: new Date().toISOString(), by: PEMANTAU?'Pemantau':'Admin' };
+  const payload = { id: 'ann_'+Date.now(), title, content, image: tempAnnImage, video: document.getElementById('ann-video-in').value.trim(), audio: document.getElementById('ann-audio-in').value.trim(), link: document.getElementById('ann-link-in').value.trim(), date: new Date().toISOString(), by: PEMANTAU?'Pemantau':'Admin' };
   toast('Menerbitkan pengumuman ke cloud...', 'warn');
 
   const res = await cloudPost("addAnnouncement", payload);
@@ -3999,6 +4155,18 @@ async function saveAnnouncement() {
 
   anns.push(payload); DB.set('announcements', anns);
   closeM('m-ann-form'); window._annSig = null; renderAnnouncements(); toast('Pengumuman Diterbitkan!', 'success');
+}
+
+function getAudioHtml(url) {
+  if (!url) return '';
+  // Google Drive audio - guna preview iframe (Drive ada pemain audio terbina dalam)
+  let m = url.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (!m) m = url.match(/drive\.google\.com\/(?:open|uc)\?id=([A-Za-z0-9_-]+)/);
+  if (m) {
+    return `<div class="ann-aud-wrap" style="margin-top:8px;"><iframe src="https://drive.google.com/file/d/${m[1]}/preview" style="width:100%;height:60px;border:0;border-radius:8px;" allow="autoplay"></iframe></div>`;
+  }
+  // Fail audio terus (.mp3/.wav/.m4a/.ogg/.aac)
+  return `<audio class="ann-aud" src="${url}" controls preload="metadata" style="width:100%;margin-top:8px;display:block;max-width:100%;"></audio>`;
 }
 
 function getYouTubeEmbedUrl(url) {
@@ -4016,7 +4184,7 @@ function getYouTubeEmbedUrl(url) {
 
 function renderAnnouncements() {
   const anns = DB.get('announcements') || []; const sorted = [...anns].reverse();
-  const sig = JSON.stringify(sorted.map(a => a.id + '|' + a.title + '|' + a.content + '|' + a.image + '|' + a.video + '|' + a.link));
+  const sig = JSON.stringify(sorted.map(a => a.id + '|' + a.title + '|' + a.content + '|' + a.image + '|' + a.video + '|' + a.audio + '|' + a.link));
   if (window._annSig === sig) return; // tiada perubahan - elak reset video YouTube
   window._annSig = sig;
   const stuList = document.getElementById('stu-ann-list');
@@ -4025,9 +4193,9 @@ function renderAnnouncements() {
       const ytEmbed = getYouTubeEmbedUrl(a.video);
       let videoHtml = '';
       if (ytEmbed) {
-        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
+        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:min(56.25%, 210px);border-radius:10px;overflow:hidden;margin-top:8px;max-height:220px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
       } else if (a.video) {
-        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`;
+        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;max-height:220px;border-radius:10px;margin-top:8px;display:block;object-fit:contain;"></video>`;
       }
       return `
       <div class="ann-card">
@@ -4036,6 +4204,7 @@ function renderAnnouncements() {
         <div class="ann-body">${a.content}</div>
         ${a.image ? `<img class="ann-img" src="${a.image}" onclick="openImgLightbox('${a.image}')" style="cursor:zoom-in;">` : ''}
         ${videoHtml}
+        ${getAudioHtml(a.audio)}
         ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
       </div>`;
     }).join('') || '<div class="empty">Tiada makluman.</div>';
@@ -4046,9 +4215,9 @@ function renderAnnouncements() {
       const ytEmbed = getYouTubeEmbedUrl(a.video);
       let videoHtml = '';
       if (ytEmbed) {
-        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:56.25%;border-radius:10px;overflow:hidden;margin-top:8px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
+        videoHtml = `<div class="ann-vid-wrap" style="position:relative;width:100%;padding-top:min(56.25%, 210px);border-radius:10px;overflow:hidden;margin-top:8px;max-height:220px;"><iframe src="${ytEmbed}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe></div>`;
       } else if (a.video) {
-        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;border-radius:10px;margin-top:8px;display:block;"></video>`;
+        videoHtml = `<video class="ann-vid" src="${a.video}" controls preload="metadata" style="width:100%;max-height:220px;border-radius:10px;margin-top:8px;display:block;object-fit:contain;"></video>`;
       }
       return `
       <div class="ann-card">
@@ -4057,6 +4226,7 @@ function renderAnnouncements() {
         <div class="ann-body">${a.content}</div>
         ${a.image ? `<img class="ann-img" src="${a.image}" onclick="openImgLightbox('${a.image}')" style="cursor:zoom-in;">` : ''}
         ${videoHtml}
+        ${getAudioHtml(a.audio)}
         ${a.link ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><a class="ann-link-btn" href="${a.link}" target="_blank">🔗 Dokumen</a></div>` : ''}
         <div style="display:flex; gap:6px; margin-top:8px;">
           <button class="btn bs btn-sm" style="padding:4px 8px; font-size:10px;" onclick="openEditAnn('${a.id}')">✏️ Edit</button>
