@@ -1633,48 +1633,11 @@ async function syncAllCloud(silent = false) {
     const res = await fetch(`${API_URL}?action=getAllData`, { method: "GET", mode: "cors" });
     const d = await res.json();
     if (d && d.users !== undefined) {
-      // Ambil senarai aktiviti tempatan DAHULU sebelum cache dibersihkan (untuk lindungi timer yang sedang berjalan)
-      const localActsBeforeSync = DB.get('activities') || [];
-      // Cloud-first: buang cache lama, guna data terus dari Sheets
-      DB.clearCache();
-      const mappedActs = (d.activities || []).map(a => {
-        const cloudAct = {
-          id: a.ID||'', type: a.Jenis||'', name: a.Nama||'', desc: a.Penerangan||'', date: a.Tarikh||'',
-          time: a.Masa||'', loc: a.Lokasi||'', status: a.Status||'Selesai', pin: a.PIN ? a.PIN.toString() : '',
-          duration: parseInt(a.Duration)||0, activatedAt: a.ActivatedAt||null, timerStartedAt: a.TimerStartedAt||null,
-          targetGroups: a.KumpulanSasaran ? (typeof a.KumpulanSasaran === 'string' ? a.KumpulanSasaran.split(',').map(s=>s.trim()).filter(Boolean) : a.KumpulanSasaran) : ['Semua']
-        };
-        // PEMBETULAN TIMER: Lindungi timer tempatan yang sedang berjalan dengan lebih kukuh.
-        // Jika aktiviti AKTIF dan ada timerStartedAt tempatan, SENTIASA guna nilai tempatan
-        // kerana cloud mungkin lambat mengemas kini (race condition / latency).
-        const localAct = localActsBeforeSync.find(la => la.id === cloudAct.id);
-        if (localAct && cloudAct.status === 'Aktif') {
-          if (localAct.timerStartedAt) {
-            // Ada timer berjalan secara tempatan — kekalkan tanpa syarat
-            cloudAct.timerStartedAt = localAct.timerStartedAt;
-            cloudAct.activatedAt = localAct.activatedAt || cloudAct.activatedAt;
-          }
-          // Jika admin sudah hentikan timer secara manual (timerStartedAt=null tempatan), hormati
-          if (localAct.timerStartedAt === null && localAct.status === 'Aktif') {
-            cloudAct.timerStartedAt = null;
-          }
-        }
-        return cloudAct;
-      }).filter(a => a.id && !a.id.startsWith('report_'));
-      const mappedAtts = (d.attendance || []).map(at => ({
-        id: at.ID||'', matric: at.Matrik||'', actId: at.AktivitiID||'', date: at.TarikhMasa||'', status: at.Status||'present', by: at.DirekodOleh||''
-      }));
-      const mappedAnns = (d.announcements || []).map(an => ({
-        id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', audio: an.Audio||'', link: an.Pautan||'', by: an.Penulis||''
-      }));
-      const mappedVisitors = (d.visitors || []).map(v => ({
-        matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'', activity: v.Aktiviti||''
-      }));
-      // PEMBETULAN: mappedUsers sebelum ini TIDAK DITAKRIFKAN — menyebabkan ReferenceError
-      // di sini, sync cloud sentiasa gagal (jatuh ke catch), dan SEMUA data cloud
-      // (users, activities, attendance, announcements, dll.) tidak pernah disimpan
-      // ke peranti. Ini punca utama "ID/kata laluan salah" bila pelajar baharu
-      // log masuk dari peranti mereka sendiri.
+      // ── LANGKAH 1: Simpan snapshot aktiviti TEMPATAN sebelum apa-apa perubahan ──
+      // PENTING: Mesti dibaca SEBELUM sebarang DB.set() atau DB.clearCache()
+      const localActsSnapshot = DB.get('activities') || [];
+
+      // ── LANGKAH 2: Map data cloud untuk semua koleksi KECUALI aktiviti ──
       const mappedUsers = (d.users || []).map(u => ({
         name: u.Nama || '',
         matric: (u.Matrik !== undefined && u.Matrik !== null) ? String(u.Matrik).trim().toUpperCase() : '',
@@ -1683,8 +1646,6 @@ async function syncAllCloud(silent = false) {
         class: u.Kumpulan || '',
         phone: (u.Telefon !== undefined && u.Telefon !== null) ? String(u.Telefon) : '',
         email: u.Email || '',
-        // Katalaluan kadang disimpan sbg Number oleh Google Sheets jika cth "2024001"
-        // — String() di sini elak ketidakpadanan jenis data semasa semakan kata laluan.
         pass: (u.Katalaluan !== undefined && u.Katalaluan !== null) ? String(u.Katalaluan) : '',
         registered: u.TarikhDaftar || new Date().toISOString(),
         avatar: u.Avatar || '',
@@ -1695,11 +1656,78 @@ async function syncAllCloud(silent = false) {
         }
       })).filter(u => u.matric);
 
+      const mappedAtts = (d.attendance || []).map(at => ({
+        id: at.ID||'', matric: at.Matrik||'', actId: at.AktivitiID||'', date: at.TarikhMasa||'', status: at.Status||'present', by: at.DirekodOleh||''
+      }));
+      const mappedAnns = (d.announcements || []).map(an => ({
+        id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', audio: an.Audio||'', link: an.Pautan||'', by: an.Penulis||''
+      }));
+      const mappedVisitors = (d.visitors || []).map(v => ({
+        matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'', activity: v.Aktiviti||''
+      }));
+
+      // ── LANGKAH 3: Map aktiviti dengan PERLINDUNGAN TIMER PENUH ──
+      // Kaedah: ambil data cloud sebagai asas, tapi untuk field timer,
+      // SENTIASA utamakan nilai tempatan jika aktiviti masih Aktif.
+      // Ini menyelesaikan masalah timer reset semasa sync.
+      const mappedActs = (d.activities || []).map(a => {
+        // Normalisasi nilai kosong dari Sheets ("" → null)
+        const rawTimerStartedAt = (a.TimerStartedAt && String(a.TimerStartedAt).trim() !== '') ? a.TimerStartedAt : null;
+        const rawActivatedAt    = (a.ActivatedAt    && String(a.ActivatedAt).trim()    !== '') ? a.ActivatedAt    : null;
+
+        const cloudAct = {
+          id:           a.ID || '',
+          type:         a.Jenis || '',
+          name:         a.Nama || '',
+          desc:         a.Penerangan || '',
+          date:         a.Tarikh || '',
+          time:         a.Masa || '',
+          loc:          a.Lokasi || '',
+          status:       a.Status || 'Selesai',
+          pin:          a.PIN ? a.PIN.toString() : '',
+          duration:     parseInt(a.Duration) || 0,
+          activatedAt:  rawActivatedAt,
+          timerStartedAt: rawTimerStartedAt,
+          targetGroups: a.KumpulanSasaran
+            ? (typeof a.KumpulanSasaran === 'string'
+                ? a.KumpulanSasaran.split(',').map(s => s.trim()).filter(Boolean)
+                : a.KumpulanSasaran)
+            : ['Semua']
+        };
+
+        // Cari padanan dalam snapshot tempatan
+        const localAct = localActsSnapshot.find(la => la.id === cloudAct.id);
+
+        if (localAct) {
+          // Kes 1: Aktiviti AKTIF di kedua-dua tempatan & cloud
+          // → Lindungi timer tempatan SEPENUHNYA (cloud mungkin belum dikemas kini)
+          if (localAct.status === 'Aktif' && cloudAct.status === 'Aktif') {
+            if (localAct.timerStartedAt) {
+              cloudAct.timerStartedAt = localAct.timerStartedAt;
+              cloudAct.activatedAt    = localAct.activatedAt || cloudAct.activatedAt;
+            }
+          }
+          // Kes 2: Admin tutup aktiviti secara tempatan (Selesai) tapi cloud masih Aktif
+          // → Hormati keputusan tempatan, jangan "hidupkan semula"
+          if (localAct.status === 'Selesai' && cloudAct.status === 'Aktif') {
+            cloudAct.status         = 'Selesai';
+            cloudAct.timerStartedAt = null;
+            cloudAct.activatedAt    = null;
+          }
+        }
+
+        return cloudAct;
+      }).filter(a => a.id && !a.id.startsWith('report_'));
+
+      // ── LANGKAH 4: Bandingkan aktiviti SEBELUM clearCache ──
+      // (prevActsJSON diambil dari snapshot yang sudah ada — bukan selepas clearCache)
+      const prevActsJSON = JSON.stringify(localActsSnapshot);
+      const newActsJSON  = JSON.stringify(mappedActs);
+      const actsChanged  = prevActsJSON !== newActsJSON;
+
+      // ── LANGKAH 5: Baru bersihkan cache dan simpan semua data ──
+      DB.clearCache();
       DB.set('users', mappedUsers);
-      // Simpan senarai aktiviti — bandingkan dulu sebelum set (elak re-render kalau tiada perubahan)
-      const prevActsJSON = JSON.stringify(DB.get('activities') || []);
-      const newActsJSON = JSON.stringify(mappedActs);
-      const actsChanged = prevActsJSON !== newActsJSON;
       DB.set('activities', mappedActs);
       DB.set('attendance', mappedAtts);
       DB.set('announcements', mappedAnns);
@@ -4522,17 +4550,8 @@ let _autoSyncInterval = setInterval(async () => {
   const doFull = (now - _lastFullSync) >= 60000;
   if (doFull) {
     _lastFullSync = now;
-    syncAllCloud(true).then(() => {
-      try {
-        if (typeof refreshAdmDash === 'function' && document.getElementById('view-admin')?.classList.contains('active')) refreshAdmDash();
-        if (typeof renderAnnouncements === 'function') renderAnnouncements();
-        if (typeof renderVisitorStats === 'function') renderVisitorStats();
-        if (typeof applyTheme === 'function') {
-          const t = DB.get('app_theme');
-          if (t && JSON.stringify(t) !== JSON.stringify(activeTheme)) { activeTheme = t; applyTheme(activeTheme); }
-        }
-      } catch(e) {}
-    }).catch(()=>{});
+    // syncAllCloud sudah handle refreshAdmDash & renderAnnouncements di dalamnya
+    syncAllCloud(true).catch(()=>{});
   } else {
     // Light sync: hanya tarik data pelajar & pengumuman, JANGAN sentuh aktiviti (elak timer reset)
     try {
