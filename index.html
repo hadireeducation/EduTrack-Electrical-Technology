@@ -1357,7 +1357,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzfRIMlmaLRMzLfXAllFtGBGH5Aezrci8yb65w2x_BijYilEQbZojYjW7tyuiBRWmm7/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbxqLd-kmRoyScawtVS0ZZYfzbc1ZklOLbG_iMawn91rgCn3Hu24ezAroGdLg7eplK3-/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1644,13 +1644,19 @@ async function syncAllCloud(silent = false) {
           duration: parseInt(a.Duration)||0, activatedAt: a.ActivatedAt||null, timerStartedAt: a.TimerStartedAt||null,
           targetGroups: a.KumpulanSasaran ? (typeof a.KumpulanSasaran === 'string' ? a.KumpulanSasaran.split(',').map(s=>s.trim()).filter(Boolean) : a.KumpulanSasaran) : ['Semua']
         };
-        // PEMBETULAN ISU 3: Jika timer sedang berjalan secara tempatan, jangan biarkan sync cloud menimpa timerStartedAt & activatedAt
+        // PEMBETULAN TIMER: Lindungi timer tempatan yang sedang berjalan dengan lebih kukuh.
+        // Jika aktiviti AKTIF dan ada timerStartedAt tempatan, SENTIASA guna nilai tempatan
+        // kerana cloud mungkin lambat mengemas kini (race condition / latency).
         const localAct = localActsBeforeSync.find(la => la.id === cloudAct.id);
-        if (localAct && localAct.timerStartedAt && cloudAct.status === 'Aktif') {
-          // Gunakan nilai tempatan jika lebih baharu atau cloud tiada nilai
-          if (!cloudAct.timerStartedAt || new Date(localAct.timerStartedAt) > new Date(cloudAct.timerStartedAt)) {
+        if (localAct && cloudAct.status === 'Aktif') {
+          if (localAct.timerStartedAt) {
+            // Ada timer berjalan secara tempatan — kekalkan tanpa syarat
             cloudAct.timerStartedAt = localAct.timerStartedAt;
             cloudAct.activatedAt = localAct.activatedAt || cloudAct.activatedAt;
+          }
+          // Jika admin sudah hentikan timer secara manual (timerStartedAt=null tempatan), hormati
+          if (localAct.timerStartedAt === null && localAct.status === 'Aktif') {
+            cloudAct.timerStartedAt = null;
           }
         }
         return cloudAct;
@@ -1690,6 +1696,10 @@ async function syncAllCloud(silent = false) {
       })).filter(u => u.matric);
 
       DB.set('users', mappedUsers);
+      // Simpan senarai aktiviti — bandingkan dulu sebelum set (elak re-render kalau tiada perubahan)
+      const prevActsJSON = JSON.stringify(DB.get('activities') || []);
+      const newActsJSON = JSON.stringify(mappedActs);
+      const actsChanged = prevActsJSON !== newActsJSON;
       DB.set('activities', mappedActs);
       DB.set('attendance', mappedAtts);
       DB.set('announcements', mappedAnns);
@@ -1708,7 +1718,11 @@ async function syncAllCloud(silent = false) {
       gdStCloud('ok');
       if (lbl) lbl.textContent = '☁️ Muat Semula Serta-merta (Cloud Fetch)';
       if (CU) { const freshU = mappedUsers.find(u => u.matric === CU.matric); if (freshU) CU = freshU; renderStuDash(); }
-      if (ADMIN || PEMANTAU) refreshAdmDash();
+      // Hanya refresh paparan aktiviti jika data aktiviti benar-benar berubah
+      if (ADMIN || PEMANTAU) {
+        refreshAdmDash();
+        if (actsChanged && document.getElementById('at-act')?.classList.contains('active')) renderActList();
+      }
       return true;
     }
   } catch (e) {
@@ -2930,16 +2944,16 @@ async function toggleActSt(id) {
       a.status = 'Aktif';
       a.activatedAt = new Date().toISOString();
       const schedMs = parseSchedMs(a.date, a.time);
-      // Jika jadual sudah tiba, terus mula timer; jika tidak, tunggu atau mula manual
       a.timerStartedAt = Date.now() >= schedMs ? a.activatedAt : null;
     }
     acts[idx] = a;
+    // Simpan tempatan DULU supaya UI serta-merta terkini dan tak terjejas oleh sync berikutnya
     DB.set('activities', acts);
-    toast(`Status "${a.name}" ditukar kepada ${a.status}!`, 'success');
-    
-    await cloudPost("addActivity", a);
     renderActList();
     refreshAdmDash();
+    toast(`Status "${a.name}" ditukar kepada ${a.status}! Menghantar ke cloud...`, 'success');
+    // Hantar ke cloud (latar belakang)
+    cloudPost("addActivity", a).catch(()=>toast('⚠️ Gagal simpan ke cloud. Cuba muat semula.','error'));
   }
 }
 
@@ -2954,10 +2968,12 @@ async function adminStartTimer(id) {
   a.timerStartedAt = new Date().toISOString();
   a.activatedAt = a.timerStartedAt;
   acts[idx] = a;
+  // Simpan tempatan DULU — elak sync berikutnya menimpa timer
   DB.set('activities', acts);
-  toast(`▶ Sesi "${a.name}" dimulakan secara manual oleh ${who}.`, 'success');
-  await cloudPost("addActivity", a);
   renderActList(); refreshAdmDash();
+  toast(`▶ Sesi "${a.name}" dimulakan secara manual oleh ${who}.`, 'success');
+  // Hantar ke cloud latar belakang
+  cloudPost("addActivity", a).catch(()=>toast('⚠️ Gagal simpan timer ke cloud. Cuba muat semula.','error'));
 }
 
 async function adminStopTimer(id) {
@@ -2969,11 +2985,13 @@ async function adminStopTimer(id) {
     const a = acts[idx];
     a.status = 'Selesai'; a.timerStartedAt = null; a.activatedAt = null;
     acts[idx] = a;
+    // Simpan tempatan DULU
     DB.set('activities', acts);
     const who = IS_MAIN_ADMIN ? 'Admin Utama' : IS_SUB_ADMIN ? 'Admin Tambahan' : 'Pemantau';
-    toast(`⏹ Sesi "${a.name}" ditamatkan secara manual oleh ${who}.`, 'warn');
-    await cloudPost("addActivity", a);
     renderActList(); refreshAdmDash();
+    toast(`⏹ Sesi "${a.name}" ditamatkan secara manual oleh ${who}.`, 'warn');
+    // Hantar ke cloud latar belakang
+    cloudPost("addActivity", a).catch(()=>toast('⚠️ Gagal simpan ke cloud. Cuba muat semula.','error'));
   });
 }
 
@@ -3032,15 +3050,17 @@ async function saveAct(){
   }
   
   const payload = { id: id||'a'+Date.now(), type, name, desc, date, time, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
-  toast('Menghantar data aktiviti ke Cloud Database...', 'warn');
   
-  const res = await cloudPost("addActivity", payload);
-  if(res.status === "error") return toast(res.message, 'error');
-  
+  // Simpan tempatan DULU — UI serta-merta terkini
   if(id){ const i=acts.findIndex(a=>a.id===id); if(i>-1) acts[i]=payload; } else { acts.push(payload); }
   DB.set('activities',acts);
+  closeM('m-act'); renderActList(); refreshAdmDash();
+  toast('Aktiviti disimpan! Menghantar ke Cloud...', 'success');
   
-  closeM('m-act'); renderActList(); refreshAdmDash(); toast('Aktiviti Berjaya Disimpan!', 'success');
+  // Hantar ke cloud latar belakang
+  cloudPost("addActivity", payload).then(res=>{
+    if(res.status === "error") toast('⚠️ Gagal simpan ke cloud: ' + (res.message||'Ralat'), 'error');
+  }).catch(()=>toast('⚠️ Gagal sambung cloud. Data disimpan secara tempatan.','error'));
 }
 function delAct(id){
   if(guardWrite('activities'))return;
@@ -4441,8 +4461,11 @@ function checkAndExpireActivities() {
   });
   if (updated) {
     DB.set('activities', acts);
-    if (document.getElementById('at-act').classList.contains('active')) renderActList();
-    if (document.getElementById('at-dash').classList.contains('active')) refreshAdmDash();
+    // Render semula hanya jika tab aktiviti sedang aktif
+    if (ADMIN || PEMANTAU) {
+      if (document.getElementById('at-act')?.classList.contains('active')) renderActList();
+      if (document.getElementById('at-dash')?.classList.contains('active')) refreshAdmDash();
+    }
     if (CU) renderStuDash();
   }
 }
@@ -4458,7 +4481,7 @@ function startGlobalTickers() {
       });
     });
   }, 1000);
-  setInterval(checkAndExpireActivities, 3000);
+  setInterval(checkAndExpireActivities, 10000);
 }
 
 // INITIALIZATION ON LOAD
@@ -4489,9 +4512,16 @@ window.addEventListener('load', async () => {
   }
 });
 
-// AUTO-SYNC SENYAP (setiap 10 saat) - supaya semua peranti seragam tanpa notifikasi
-let _autoSyncInterval = setInterval(() => {
-  if (API_URL && !document.hidden && document.getElementById('m-confirm')?.style.display !== 'flex') {
+// AUTO-SYNC SENYAP (setiap 30 saat) - kadar dikurangkan untuk elak beban cloud & konflik timer
+// Dibahagikan kepada 2 jenis sync: ringan (light) & penuh (full)
+let _lastFullSync = 0;
+let _autoSyncInterval = setInterval(async () => {
+  if (!API_URL || document.hidden || document.getElementById('m-confirm')?.style.display === 'flex') return;
+  const now = Date.now();
+  // Full sync setiap 60 saat; light sync setiap 30 saat
+  const doFull = (now - _lastFullSync) >= 60000;
+  if (doFull) {
+    _lastFullSync = now;
     syncAllCloud(true).then(() => {
       try {
         if (typeof refreshAdmDash === 'function' && document.getElementById('view-admin')?.classList.contains('active')) refreshAdmDash();
@@ -4503,12 +4533,44 @@ let _autoSyncInterval = setInterval(() => {
         }
       } catch(e) {}
     }).catch(()=>{});
+  } else {
+    // Light sync: hanya tarik data pelajar & pengumuman, JANGAN sentuh aktiviti (elak timer reset)
+    try {
+      const res = await fetch(`${API_URL}?action=getAllData`, { method:"GET", mode:"cors" });
+      const d = await res.json();
+      if (d && d.users !== undefined) {
+        // Kemaskini pengguna & pengumuman sahaja — TIDAK sentuh activities
+        const mappedUsers = (d.users || []).map(u => ({
+          name: u.Nama||'', matric: (u.Matrik!==undefined&&u.Matrik!==null)?String(u.Matrik).trim().toUpperCase():'',
+          progtype: u.Program||'', semester: u.Semester||'', class: u.Kumpulan||'',
+          phone: (u.Telefon!==undefined&&u.Telefon!==null)?String(u.Telefon):'', email: u.Email||'',
+          pass: (u.Katalaluan!==undefined&&u.Katalaluan!==null)?String(u.Katalaluan):'',
+          registered: u.TarikhDaftar||new Date().toISOString(), avatar: u.Avatar||'',
+          behavior: { score:(u.SkorSahsiah!==''&&u.SkorSahsiah!==undefined&&u.SkorSahsiah!==null)?Number(u.SkorSahsiah):100, tags:u.Tags?String(u.Tags).split(',').map(s=>s.trim()).filter(Boolean):[], note:u.Nota||'' }
+        })).filter(u => u.matric);
+        DB.set('users', mappedUsers);
+        const mappedAnns = (d.announcements||[]).map(an => ({
+          id:an.ID||'',title:an.Tajuk||'',content:an.Kandungan||'',date:an.Tarikh||'',image:an.Gambar||'',video:an.Video||'',audio:an.Audio||'',link:an.Pautan||'',by:an.Penulis||''
+        }));
+        DB.set('announcements', mappedAnns);
+        if (CU) { const freshU=mappedUsers.find(u=>u.matric===CU.matric); if(freshU){CU=freshU; renderStuDash();} }
+        if (typeof renderAnnouncements==='function') renderAnnouncements();
+        if (typeof renderVisitorStats==='function') renderVisitorStats();
+      }
+    } catch(e) {}
   }
-}, 10000);
+}, 30000);
 
-// Bila tab kembali aktif (pengguna tukar balik dari app/tab lain), terus sync
+// Bila tab kembali aktif (pengguna tukar balik dari app/tab lain), sync jika sudah >30 saat
+let _lastVisibilitySync = 0;
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && API_URL) syncAllCloud(true).catch(()=>{});
+  if (!document.hidden && API_URL) {
+    const now = Date.now();
+    if (now - _lastVisibilitySync > 30000) {
+      _lastVisibilitySync = now;
+      syncAllCloud(true).catch(()=>{});
+    }
+  }
 });
 function openImgLightbox(src) {
   if (!src) return;
