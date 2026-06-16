@@ -1700,15 +1700,22 @@ async function syncAllCloud(silent = false) {
         const localAct = localActsSnapshot.find(la => la.id === cloudAct.id);
 
         if (localAct) {
-          // Kes 1: Aktiviti AKTIF di kedua-dua tempatan & cloud
-          // → Lindungi timer tempatan SEPENUHNYA (cloud mungkin belum dikemas kini)
+          // Kes 1: Aktiviti AKTIF di tempatan — lindungi timer sepenuhnya
+          // Cloud mungkin belum terima update, jadi nilai tempatan adalah sumber kebenaran
           if (localAct.status === 'Aktif' && cloudAct.status === 'Aktif') {
             if (localAct.timerStartedAt) {
               cloudAct.timerStartedAt = localAct.timerStartedAt;
               cloudAct.activatedAt    = localAct.activatedAt || cloudAct.activatedAt;
+            } else if (localAct.activatedAt) {
+              cloudAct.activatedAt = localAct.activatedAt;
             }
           }
-          // Kes 2: Admin tutup aktiviti secara tempatan (Selesai) tapi cloud masih Aktif
+          // Kes 2: Aktiviti Aktif di tempatan tapi cloud tiada timer lagi
+          if (localAct.status === 'Aktif' && cloudAct.status === 'Aktif' && !cloudAct.timerStartedAt && localAct.timerStartedAt) {
+            cloudAct.timerStartedAt = localAct.timerStartedAt;
+            cloudAct.activatedAt    = localAct.activatedAt || cloudAct.activatedAt;
+          }
+          // Kes 3: Admin tutup aktiviti secara tempatan (Selesai) tapi cloud masih Aktif
           // → Hormati keputusan tempatan, jangan "hidupkan semula"
           if (localAct.status === 'Selesai' && cloudAct.status === 'Aktif') {
             cloudAct.status         = 'Selesai';
@@ -1794,258 +1801,439 @@ function saveCloudAPI() {
 // BACKEND APPS SCRIPT CODE GENERATION FOR CLOUD SHEETS
 function copyAppsScriptCode() {
   const code = `/**
- * Google Apps Script Backend for EduTrack
- * Sila salin keseluruhan kod ini, pasangkan pada Google Sheets -> Extensions -> Apps Script.
- * Sebarkan sebagai "Web App", akses "Anyone", dan salin URL Web App yang dijana.
+ * ╔══════════════════════════════════════════════════════════════════════╗
+ * ║        EduTrack — Google Apps Script Backend (Versi Optimum)        ║
+ * ║        Dengan CacheService untuk prestasi tinggi & ramai pengguna   ║
+ * ╠══════════════════════════════════════════════════════════════════════╣
+ * ║  CARA PASANG:                                                        ║
+ * ║  1. Buka Google Sheets anda                                          ║
+ * ║  2. Extensions → Apps Script                                         ║
+ * ║  3. Padam semua kod lama, tampal kod ini sepenuhnya                  ║
+ * ║  4. Klik Deploy → New Deployment → Web App                          ║
+ * ║  5. Execute as: Me | Who has access: Anyone                          ║
+ * ║  6. Klik Deploy & salin URL Web App ke tetapan EduTrack             ║
+ * ╚══════════════════════════════════════════════════════════════════════╝
+ *
+ * PERUBAHAN BERBANDING VERSI LAMA:
+ * ✅ CacheService — getAllData dikache 25 saat (kurang baca Sheets)
+ * ✅ Cache automatik dibersihkan bila data berubah (tulis/padam)
+ * ✅ LockService — elak race condition bila ramai pengguna serentak
+ * ✅ Pengesahan input asas untuk keselamatan
+ * ✅ Komen lengkap untuk setiap bahagian
  */
 
-const SHEET_NAME_USERS = "Pelajar";
-const SHEET_NAME_ACT = "Aktiviti";
-const SHEET_NAME_ATT = "Kehadiran";
-const SHEET_NAME_ANN = "Pengumuman";
-const SHEET_NAME_CONFIG = "Konfigurasi";
+// ═══════════════════════════════════════════════════════════
+// NAMA SHEET — JANGAN UBAH melainkan nama sheet anda berbeza
+// ═══════════════════════════════════════════════════════════
+const SHEET_NAME_USERS    = "Pelajar";
+const SHEET_NAME_ACT      = "Aktiviti";
+const SHEET_NAME_ATT      = "Kehadiran";
+const SHEET_NAME_ANN      = "Pengumuman";
+const SHEET_NAME_CONFIG   = "Konfigurasi";
 const SHEET_NAME_SESSIONS = "Sesi";
-const SHEET_NAME_VISITOR = "PelawatLog";
+const SHEET_NAME_VISITOR  = "PelawatLog";
 
+// Tempoh cache getAllData dalam saat (25 saat = sesuai dengan sync 30s klien)
+const CACHE_TTL_SECONDS = 25;
+const CACHE_KEY_ALLDATA = "edutrack_alldata_v1";
+
+// ═══════════════════════════════════════════════════════════
+// doGet — Untuk permintaan GET (sync data ke klien)
+// ═══════════════════════════════════════════════════════════
 function doGet(e) {
-  const action = e.parameter.action;
-  if (action === "getAllData") {
-    return ContentService.createTextOutput(JSON.stringify(retrieveDatabaseData()))
+  try {
+    const action = e.parameter.action;
+
+    if (action === "getAllData") {
+      // Cuba ambil dari cache dahulu
+      const cache = CacheService.getScriptCache();
+      const cached = cache.get(CACHE_KEY_ALLDATA);
+
+      if (cached) {
+        // Cache ada — pulangkan terus tanpa baca Sheets (jimat masa & kuota)
+        return ContentService.createTextOutput(cached)
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Cache kosong — baca dari Sheets dan simpan ke cache
+      const data = retrieveDatabaseData();
+      const json = JSON.stringify(data);
+
+      // Simpan ke cache (max 25 saat, Google Cache maksimum 6 jam)
+      try { cache.put(CACHE_KEY_ALLDATA, json, CACHE_TTL_SECONDS); } catch(ce) {}
+
+      return ContentService.createTextOutput(json)
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "getSession") {
+      // Session tidak dicache — mesti sentiasa terkini
+      const result = getSessionLock(e.parameter.key || "");
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Tindakan GET tidak dikenali." }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
-  if (action === "getSession") {
-    return ContentService.createTextOutput(JSON.stringify(getSessionLock(e.parameter.key || "")))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  return ContentService.createTextOutput(JSON.stringify({status: "error", message: "Invalid GET Action"}))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ═══════════════════════════════════════════════════════════
+// doPost — Untuk permintaan POST (tulis/kemaskini data)
+// ═══════════════════════════════════════════════════════════
 function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
     const action = postData.action;
     const doc = SpreadsheetApp.getActiveSpreadsheet();
-    
+
+    // ── PELAJAR ──────────────────────────────────────────
     if (action === "addStudent") {
-      let sheet = doc.getSheetByName(SHEET_NAME_USERS) || doc.insertSheet(SHEET_NAME_USERS);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["Nama", "Matrik", "Program", "Semester", "Kumpulan", "Telefon", "Email", "Katalaluan", "TarikhDaftar", "Avatar", "SkorSahsiah", "Tags", "Nota"]);
+      if (!postData.matric || !postData.name) {
+        return jsonOut({ status: "error", message: "Matrik dan nama diperlukan." });
       }
-      
-      // Padam data lama jika matrik sama (Update)
-      deleteRowByValue(sheet, 2, postData.matric); 
-      sheet.appendRow([
-        postData.name, postData.matric, postData.progtype, postData.semester, 
-        postData.class, postData.phone, postData.email, postData.pass, 
-        new Date().toISOString(), postData.avatar || "", 100, "", ""
-      ]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_USERS,
+        ["Nama","Matrik","Program","Semester","Kumpulan","Telefon","Email","Katalaluan","TarikhDaftar","Avatar","SkorSahsiah","Tags","Nota"]);
+
+      // Gunakan LockService — elak dua pengguna tulis serentak
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        deleteRowByValue(sheet, 2, postData.matric);
+        sheet.appendRow([
+          postData.name, postData.matric, postData.progtype || "", postData.semester || "",
+          postData.class || "", postData.phone || "", postData.email || "", postData.pass || "",
+          new Date().toISOString(), postData.avatar || "", 100, "", ""
+        ]);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache(); // Bersihkan cache supaya sync seterusnya dapat data terkini
+      return jsonOut({ status: "success" });
     }
 
     if (action === "deleteStudent") {
-      let sheet = doc.getSheetByName(SHEET_NAME_USERS);
-      if (sheet) deleteRowByValue(sheet, 2, postData.matric);
-      let attSheet = doc.getSheetByName(SHEET_NAME_ATT);
-      if (attSheet && attSheet.getLastRow() > 0) {
-        const vals = attSheet.getDataRange().getValues();
-        for (let i = vals.length - 1; i >= 1; i--) {
-          if (vals[i][1] === postData.matric) attSheet.deleteRow(i + 1);
+      if (!postData.matric) return jsonOut({ status: "error", message: "Matrik diperlukan." });
+      const sheet = doc.getSheetByName(SHEET_NAME_USERS);
+      const attSheet = doc.getSheetByName(SHEET_NAME_ATT);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        if (sheet) deleteRowByValue(sheet, 2, postData.matric);
+        if (attSheet && attSheet.getLastRow() > 1) {
+          const vals = attSheet.getDataRange().getValues();
+          for (let i = vals.length - 1; i >= 1; i--) {
+            if (String(vals[i][1]) === String(postData.matric)) attSheet.deleteRow(i + 1);
+          }
         }
-      }
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
-    
+
+    // ── AKTIVITI ──────────────────────────────────────────
     if (action === "addActivity") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ACT) || doc.insertSheet(SHEET_NAME_ACT);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["ID", "Jenis", "Nama", "Penerangan", "Tarikh", "Masa", "Lokasi", "Status", "PIN", "Duration", "ActivatedAt", "TimerStartedAt", "KumpulanSasaran"]);
+      if (!postData.id || !postData.name) return jsonOut({ status: "error", message: "ID dan nama aktiviti diperlukan." });
+
+      // Abaikan entri laporan (id bermula dengan "report_") — simpan dalam Config sahaja
+      if (postData.id && postData.id.startsWith("report_")) {
+        // Simpan laporan ke Config
+        const cfgSheet = getOrCreateSheet(doc, SHEET_NAME_CONFIG, ["Kunci","Nilai"]);
+        const key = postData.id;
+        const val = JSON.stringify({ actId: postData.actId, actName: postData.actName, reports: postData.reports, savedBy: postData.savedBy, savedAt: postData.savedAt });
+        upsertConfig(cfgSheet, key, val);
+        invalidateCache();
+        return jsonOut({ status: "success" });
       }
-      deleteRowByValue(sheet, 1, postData.id);
-      sheet.appendRow([
-        postData.id, postData.type, postData.name, postData.desc || "", 
-        postData.date, postData.time || "", postData.loc || "", 
-        postData.status, postData.pin || "", postData.duration || 0, postData.activatedAt || "", postData.timerStartedAt || "",
-        Array.isArray(postData.targetGroups) ? postData.targetGroups.join(',') : (postData.targetGroups || 'Semua')
-      ]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_ACT,
+        ["ID","Jenis","Nama","Penerangan","Tarikh","Masa","Lokasi","Status","PIN","Duration","ActivatedAt","TimerStartedAt","KumpulanSasaran"]);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        deleteRowByValue(sheet, 1, postData.id);
+        sheet.appendRow([
+          postData.id, postData.type || "", postData.name, postData.desc || "",
+          postData.date || "", postData.time || "", postData.loc || "",
+          postData.status || "Selesai", postData.pin || "", postData.duration || 0,
+          postData.activatedAt || "", postData.timerStartedAt || "",
+          Array.isArray(postData.targetGroups) ? postData.targetGroups.join(',') : (postData.targetGroups || 'Semua')
+        ]);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
 
     if (action === "deleteActivity") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ACT);
-      if (sheet) deleteRowByValue(sheet, 1, postData.id);
-      let attSheet = doc.getSheetByName(SHEET_NAME_ATT);
-      if (attSheet && attSheet.getLastRow() > 0) {
-        const vals = attSheet.getDataRange().getValues();
-        for (let i = vals.length - 1; i >= 1; i--) {
-          if (vals[i][2] === postData.id) attSheet.deleteRow(i + 1);
+      if (!postData.id) return jsonOut({ status: "error", message: "ID aktiviti diperlukan." });
+      const sheet = doc.getSheetByName(SHEET_NAME_ACT);
+      const attSheet = doc.getSheetByName(SHEET_NAME_ATT);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        if (sheet) deleteRowByValue(sheet, 1, postData.id);
+        if (attSheet && attSheet.getLastRow() > 1) {
+          const vals = attSheet.getDataRange().getValues();
+          for (let i = vals.length - 1; i >= 1; i--) {
+            if (String(vals[i][2]) === String(postData.id)) attSheet.deleteRow(i + 1);
+          }
         }
-      }
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
 
-    if (action === "addVisitor") {
-      let sheet = doc.getSheetByName(SHEET_NAME_VISITOR) || doc.insertSheet(SHEET_NAME_VISITOR);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["Matrik", "Nama", "Masa", "Aktiviti"]);
+    // ── KEHADIRAN ─────────────────────────────────────────
+    if (action === "recordAttendance") {
+      if (!postData.matric || !postData.actId) {
+        return jsonOut({ status: "error", message: "Matrik dan ID aktiviti diperlukan." });
       }
-      sheet.appendRow([postData.matric, postData.name, postData.time, postData.activity || ""]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_ATT,
+        ["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
+
+      // Gunakan lock — penting bila ramai pelajar scan serentak
+      const lock = LockService.getScriptLock();
+      lock.waitLock(15000);
+      try {
+        // Semak pertindihan
+        if (sheet.getLastRow() > 1) {
+          const vals = sheet.getDataRange().getValues();
+          for (let i = 1; i < vals.length; i++) {
+            if (String(vals[i][1]) === String(postData.matric) && String(vals[i][2]) === String(postData.actId)) {
+              return jsonOut({ status: "warn", message: "Kehadiran pelajar ini sudah pun direkodkan untuk amali semasa." });
+            }
+          }
+        }
+        sheet.appendRow([
+          "r" + Date.now(), postData.matric, postData.actId,
+          new Date().toISOString(), "present", postData.recordedBy || ""
+        ]);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
 
     if (action === "attendanceBulkOverwrite") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ATT) || doc.insertSheet(SHEET_NAME_ATT);
-      sheet.clear();
-      sheet.appendRow(["ID", "Matrik", "AktivitiID", "TarikhMasa", "Status", "DirekodOleh"]);
-      (postData.list || []).forEach(r => {
-        sheet.appendRow([r.id, r.matric, r.actId, r.date, r.status, r.by || ""]);
-      });
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_ATT,
+        ["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(15000);
+      try {
+        sheet.clear();
+        sheet.appendRow(["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
+        const rows = (postData.list || []).map(r => [r.id, r.matric, r.actId, r.date, r.status, r.by || ""]);
+        if (rows.length > 0) sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
+    }
+
+    // ── PENGUMUMAN ────────────────────────────────────────
+    if (action === "addAnnouncement") {
+      if (!postData.id) return jsonOut({ status: "error", message: "ID pengumuman diperlukan." });
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_ANN,
+        ["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        sheet.appendRow([
+          postData.id, postData.title || "", postData.content || "",
+          postData.date || "", postData.image || "", postData.video || "",
+          postData.audio || "", postData.link || "", postData.by || ""
+        ]);
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
 
     if (action === "addAnnouncementBulkOverwrite") {
-      // Digunakan untuk operasi padam pengumuman: tulis semula keseluruhan senarai
-      let sheet = doc.getSheetByName(SHEET_NAME_ANN) || doc.insertSheet(SHEET_NAME_ANN);
-      sheet.clear();
-      sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Audio", "Pautan", "Penulis"]);
-      (postData.list || []).forEach(an => {
-        sheet.appendRow([an.id, an.title, an.content, an.date, an.image || "", an.video || "", an.audio || "", an.link || "", an.by]);
-      });
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_ANN,
+        ["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
 
-    if (action === "saveConfig") {
-      let sheet = doc.getSheetByName(SHEET_NAME_CONFIG) || doc.insertSheet(SHEET_NAME_CONFIG);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["Kunci", "Nilai"]);
-      }
-      const data = sheet.getDataRange().getValues();
-      let found = false;
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][0] === postData.key) {
-          sheet.getRange(i + 1, 2).setValue(JSON.stringify(postData.value));
-          found = true;
-          break;
-        }
-      }
-      if (!found) sheet.appendRow([postData.key, JSON.stringify(postData.value)]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        sheet.clear();
+        sheet.appendRow(["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
+        const rows = (postData.list || []).map(an => [an.id, an.title || "", an.content || "", an.date || "", an.image || "", an.video || "", an.audio || "", an.link || "", an.by || ""]);
+        if (rows.length > 0) sheet.getRange(2, 1, rows.length, 9).setValues(rows);
+      } finally { lock.releaseLock(); }
 
-    if (action === "sessionLock") {
-      let sheet = doc.getSheetByName(SHEET_NAME_SESSIONS) || doc.insertSheet(SHEET_NAME_SESSIONS);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["Kunci", "Token", "Peranti", "Masa"]);
-      }
-      const data = sheet.getDataRange().getValues();
-      let found = false;
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][0] === postData.key) {
-          sheet.getRange(i + 1, 2, 1, 3).setValues([[postData.token, postData.device || "", postData.ts || new Date().toISOString()]]);
-          found = true;
-          break;
-        }
-      }
-      if (!found) sheet.appendRow([postData.key, postData.token, postData.device || "", postData.ts || new Date().toISOString()]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === "clearSession") {
-      let sheet = doc.getSheetByName(SHEET_NAME_SESSIONS);
-      if (sheet) deleteRowByValue(sheet, 1, postData.key);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === "recordAttendance") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ATT) || doc.insertSheet(SHEET_NAME_ATT);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["ID", "Matrik", "AktivitiID", "TarikhMasa", "Status", "DirekodOleh"]);
-      }
-      
-      // Halang pertindihan kehadiran bagi pelajar & aktiviti yang sama
-      const data = sheet.getDataRange().getValues();
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][1] === postData.matric && data[i][2] === postData.actId) {
-          return ContentService.createTextOutput(JSON.stringify({status: "warn", message: "Kehadiran pelajar ini sudah pun direkodkan untuk amali semasa."}))
-            .setMimeType(ContentService.MimeType.JSON);
-        }
-      }
-      
-      sheet.appendRow([
-        "r" + Date.now(), postData.matric, postData.actId, 
-        new Date().toISOString(), "present", postData.recordedBy
-      ]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    if (action === "updateBehavior") {
-      let sheet = doc.getSheetByName(SHEET_NAME_USERS);
-      if (sheet) {
-        const data = sheet.getDataRange().getValues();
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][1] === postData.matric) {
-            sheet.getRange(i + 1, 11).setValue(postData.score);
-            sheet.getRange(i + 1, 12).setValue(postData.tags.join(","));
-            sheet.getRange(i + 1, 13).setValue(postData.note);
-            break;
-          }
-        }
-      }
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === "addAnnouncement") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ANN) || doc.insertSheet(SHEET_NAME_ANN);
-      if (sheet.getLastRow() === 0) {
-        sheet.appendRow(["ID", "Tajuk", "Kandungan", "Tarikh", "Gambar", "Video", "Audio", "Pautan", "Penulis"]);
-      }
-      sheet.appendRow([
-        postData.id, postData.title, postData.content, 
-        postData.date, postData.image || "", postData.video || "", postData.audio || "", postData.link || "", postData.by
-      ]);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
 
     if (action === "deleteAnnouncement") {
-      let sheet = doc.getSheetByName(SHEET_NAME_ANN);
-      if (sheet) deleteRowByValue(sheet, 1, postData.id);
-      return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-        .setMimeType(ContentService.MimeType.JSON);
+      const sheet = doc.getSheetByName(SHEET_NAME_ANN);
+      if (sheet) {
+        const lock = LockService.getScriptLock();
+        lock.waitLock(10000);
+        try { deleteRowByValue(sheet, 1, postData.id); } finally { lock.releaseLock(); }
+      }
+      invalidateCache();
+      return jsonOut({ status: "success" });
     }
-    
-  } catch(e) {
-    return ContentService.createTextOutput(JSON.stringify({status: "error", message: e.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
+
+    // ── KONFIGURASI ───────────────────────────────────────
+    if (action === "saveConfig") {
+      if (!postData.key) return jsonOut({ status: "error", message: "Kunci konfigurasi diperlukan." });
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_CONFIG, ["Kunci","Nilai"]);
+
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        upsertConfig(sheet, postData.key, JSON.stringify(postData.value));
+      } finally { lock.releaseLock(); }
+
+      invalidateCache();
+      return jsonOut({ status: "success" });
+    }
+
+    // ── SAHSIAH PELAJAR ───────────────────────────────────
+    if (action === "updateBehavior") {
+      if (!postData.matric) return jsonOut({ status: "error", message: "Matrik diperlukan." });
+      const sheet = doc.getSheetByName(SHEET_NAME_USERS);
+      if (sheet && sheet.getLastRow() > 1) {
+        const lock = LockService.getScriptLock();
+        lock.waitLock(10000);
+        try {
+          const data = sheet.getDataRange().getValues();
+          for (let i = 1; i < data.length; i++) {
+            if (String(data[i][1]) === String(postData.matric)) {
+              sheet.getRange(i + 1, 11).setValue(postData.score);
+              sheet.getRange(i + 1, 12).setValue((postData.tags || []).join(","));
+              sheet.getRange(i + 1, 13).setValue(postData.note || "");
+              break;
+            }
+          }
+        } finally { lock.releaseLock(); }
+      }
+      invalidateCache();
+      return jsonOut({ status: "success" });
+    }
+
+    // ── PELAWAT ───────────────────────────────────────────
+    if (action === "addVisitor") {
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_VISITOR, ["Matrik","Nama","Masa","Aktiviti"]);
+      sheet.appendRow([postData.matric || "", postData.name || "", postData.time || new Date().toISOString(), postData.activity || ""]);
+      // Pelawat tidak invalidate cache utama — data kecil & tidak kritikal
+      return jsonOut({ status: "success" });
+    }
+
+    // ── SESI / SESSION LOCK ───────────────────────────────
+    if (action === "sessionLock") {
+      const sheet = getOrCreateSheet(doc, SHEET_NAME_SESSIONS, ["Kunci","Token","Peranti","Masa"]);
+      const lock = LockService.getScriptLock();
+      lock.waitLock(10000);
+      try {
+        const data = sheet.getLastRow() > 1 ? sheet.getDataRange().getValues() : [[]];
+        let found = false;
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][0] === postData.key) {
+            sheet.getRange(i + 1, 2, 1, 3).setValues([[postData.token, postData.device || "", postData.ts || new Date().toISOString()]]);
+            found = true;
+            break;
+          }
+        }
+        if (!found) sheet.appendRow([postData.key, postData.token, postData.device || "", postData.ts || new Date().toISOString()]);
+      } finally { lock.releaseLock(); }
+      return jsonOut({ status: "success" });
+    }
+
+    if (action === "clearSession") {
+      const sheet = doc.getSheetByName(SHEET_NAME_SESSIONS);
+      if (sheet) {
+        const lock = LockService.getScriptLock();
+        lock.waitLock(10000);
+        try { deleteRowByValue(sheet, 1, postData.key); } finally { lock.releaseLock(); }
+      }
+      return jsonOut({ status: "success" });
+    }
+
+    return jsonOut({ status: "error", message: "Tindakan POST tidak dikenali: " + action });
+
+  } catch(err) {
+    return jsonOut({ status: "error", message: err.toString() });
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// FUNGSI PEMBANTU
+// ═══════════════════════════════════════════════════════════
+
+/** Kembalikan respons JSON */
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Bersihkan cache getAllData.
+ * Dipanggil setiap kali data berubah supaya permintaan sync seterusnya
+ * mendapat data terkini dari Sheets, bukan dari cache lama.
+ */
+function invalidateCache() {
+  try {
+    CacheService.getScriptCache().remove(CACHE_KEY_ALLDATA);
+  } catch(e) {}
+}
+
+/** Dapatkan sheet sedia ada atau cipta baharu dengan pengepala */
+function getOrCreateSheet(doc, name, headers) {
+  let sheet = doc.getSheetByName(name);
+  if (!sheet) {
+    sheet = doc.insertSheet(name);
+    sheet.appendRow(headers);
+  } else if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
+/** Kemaskini baris wujud atau tambah baris baharu dalam sheet konfigurasi */
+function upsertConfig(sheet, key, valueStr) {
+  if (sheet.getLastRow() > 1) {
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === key) {
+        sheet.getRange(i + 1, 2).setValue(valueStr);
+        return;
+      }
+    }
+  }
+  sheet.appendRow([key, valueStr]);
+}
+
+/** Padam baris berdasarkan nilai dalam lajur tertentu */
 function deleteRowByValue(sheet, colIdx, val) {
-  if (sheet.getLastRow() === 0) return;
+  if (!sheet || sheet.getLastRow() <= 1) return;
   const vals = sheet.getDataRange().getValues();
   for (let i = vals.length - 1; i >= 1; i--) {
-    if (vals[i][colIdx - 1] == val) {
+    if (String(vals[i][colIdx - 1]) === String(val)) {
       sheet.deleteRow(i + 1);
     }
   }
 }
 
+/** Baca kunci sesi dari sheet Sesi */
 function getSessionLock(key) {
   const doc = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = doc.getSheetByName(SHEET_NAME_SESSIONS);
-  if (!sheet || sheet.getLastRow() === 0) return null;
+  if (!sheet || sheet.getLastRow() <= 1) return null;
   const vals = sheet.getDataRange().getValues();
   for (let i = 1; i < vals.length; i++) {
     if (vals[i][0] === key) {
@@ -2055,37 +2243,45 @@ function getSessionLock(key) {
   return null;
 }
 
+/**
+ * Baca semua data dari Sheets dan kembalikan sebagai objek JSON.
+ * Fungsi ini HANYA dipanggil apabila cache kosong/tamat tempoh.
+ */
 function retrieveDatabaseData() {
   const doc = SpreadsheetApp.getActiveSpreadsheet();
   return {
-    users: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_USERS)),
-    activities: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ACT)),
-    attendance: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ATT)),
+    users:         getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_USERS)),
+    activities:    getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ACT)),
+    attendance:    getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ATT)),
     announcements: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ANN)),
-    visitors: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_VISITOR)),
-    config: getConfigJSON(doc.getSheetByName(SHEET_NAME_CONFIG))
+    visitors:      getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_VISITOR)),
+    config:        getConfigJSON(doc.getSheetByName(SHEET_NAME_CONFIG))
   };
 }
 
+/** Tukar sheet konfigurasi kepada objek {kunci: nilai} */
 function getConfigJSON(sheet) {
   const out = {};
-  if (!sheet || sheet.getLastRow() === 0) return out;
+  if (!sheet || sheet.getLastRow() <= 1) return out;
   const vals = sheet.getDataRange().getValues();
   for (let i = 1; i < vals.length; i++) {
     const k = vals[i][0], v = vals[i][1];
+    if (!k) continue;
     try { out[k] = JSON.parse(v); } catch(e) { out[k] = v; }
   }
   return out;
 }
 
+/** Tukar sheet kepada array objek JSON berdasarkan baris pengepala */
 function getSheetRowsJSON(sheet) {
-  if (!sheet || sheet.getLastRow() === 0) return [];
-  const range = sheet.getDataRange();
-  const vals = range.getValues();
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+  const vals = sheet.getDataRange().getValues();
   const headers = vals[0];
   const list = [];
   for (let i = 1; i < vals.length; i++) {
-    let row = {};
+    // Langkau baris kosong sepenuhnya
+    if (vals[i].every(cell => cell === "" || cell === null || cell === undefined)) continue;
+    const row = {};
     for (let j = 0; j < headers.length; j++) {
       row[headers[j]] = vals[i][j];
     }
@@ -3069,13 +3265,31 @@ async function saveAct(){
   
   const acts=DB.get('activities')||[];
   let oldAct = acts.find(a => a.id === id);
+
+  // PENTING: Kekalkan activatedAt & timerStartedAt asal jika aktiviti sudah Aktif
+  // Jangan sekali-kali reset masa semasa edit aktiviti yang sedang berjalan
   let activatedAt = oldAct ? oldAct.activatedAt : null;
   let timerStartedAt = oldAct ? (oldAct.timerStartedAt || null) : null;
-  
-  if (status === 'Aktif' && (!oldAct || oldAct.status !== 'Aktif')) {
-    activatedAt = new Date().toISOString();
-    const schedMs = parseSchedMs(date, time);
-    timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
+
+  if (status === 'Aktif') {
+    if (!oldAct) {
+      // Aktiviti BARU — set masa mula baharu
+      activatedAt = new Date().toISOString();
+      const schedMs = parseSchedMs(date, time);
+      timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
+    } else if (oldAct.status !== 'Aktif') {
+      // Aktiviti ditukar dari Selesai/lain → Aktif — set masa mula baharu
+      activatedAt = new Date().toISOString();
+      const schedMs = parseSchedMs(date, time);
+      timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
+    }
+    // Jika oldAct.status === 'Aktif' — KEKALKAN activatedAt & timerStartedAt sedia ada (tiada reset)
+  } else {
+    // Status bukan Aktif (Selesai/Dibatal) — padam masa timer
+    if (oldAct && oldAct.status === 'Aktif') {
+      activatedAt = null;
+      timerStartedAt = null;
+    }
   }
   
   const payload = { id: id||'a'+Date.now(), type, name, desc, date, time, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
