@@ -1357,7 +1357,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbxqLd-kmRoyScawtVS0ZZYfzbc1ZklOLbG_iMawn91rgCn3Hu24ezAroGdLg7eplK3-/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzlch-ih2E3SYA8o0kuPIgmmKZZ_jmj2-VLUtyPHBMqMGUZxnRPEw7SnGpNFw9_nSYI/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1663,7 +1663,8 @@ async function syncAllCloud(silent = false) {
         id: an.ID||'', title: an.Tajuk||'', content: an.Kandungan||'', date: an.Tarikh||'', image: an.Gambar||'', video: an.Video||'', audio: an.Audio||'', link: an.Pautan||'', by: an.Penulis||''
       }));
       const mappedVisitors = (d.visitors || []).map(v => ({
-        matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'', activity: v.Aktiviti||''
+        matric: v.Matrik||'', name: v.Nama||'', time: v.Masa||'',
+        timeOut: v.MasaKeluar||'', jenis: v.Jenis||'Masuk', activity: v.Aktiviti||''
       }));
 
       // ── LANGKAH 3: Map aktiviti dengan PERLINDUNGAN TIMER PENUH ──
@@ -1700,22 +1701,33 @@ async function syncAllCloud(silent = false) {
         const localAct = localActsSnapshot.find(la => la.id === cloudAct.id);
 
         if (localAct) {
-          // Kes 1: Aktiviti AKTIF di tempatan — lindungi timer sepenuhnya
-          // Cloud mungkin belum terima update, jadi nilai tempatan adalah sumber kebenaran
+          // Kes 1: Aktiviti AKTIF di kedua-dua tempatan & cloud
+          // → Lindungi SEMUA nilai masa tempatan sepenuhnya
+          // (date, time, activatedAt, timerStartedAt) — nilai cloud boleh berbeza format
           if (localAct.status === 'Aktif' && cloudAct.status === 'Aktif') {
+            // Kekalkan date & time tempatan — JANGAN bagi cloud tukar nilai ini
+            // Sheets mungkin simpan dalam format berbeza (serial/ISO/perpuluhan)
+            // yang menyebabkan tarikh/masa bertukar selepas sync
+            if (localAct.date) cloudAct.date = localAct.date;
+            if (localAct.time !== undefined && localAct.time !== null) cloudAct.time = localAct.time;
+            // Kekalkan semua nilai masa/timer dari tempatan
             if (localAct.timerStartedAt) {
               cloudAct.timerStartedAt = localAct.timerStartedAt;
               cloudAct.activatedAt    = localAct.activatedAt || cloudAct.activatedAt;
             } else if (localAct.activatedAt) {
               cloudAct.activatedAt = localAct.activatedAt;
             }
+            if (!cloudAct.timerStartedAt && localAct.timerStartedAt) {
+              cloudAct.timerStartedAt = localAct.timerStartedAt;
+            }
           }
-          // Kes 2: Aktiviti Aktif di tempatan tapi cloud tiada timer lagi
-          if (localAct.status === 'Aktif' && cloudAct.status === 'Aktif' && !cloudAct.timerStartedAt && localAct.timerStartedAt) {
-            cloudAct.timerStartedAt = localAct.timerStartedAt;
-            cloudAct.activatedAt    = localAct.activatedAt || cloudAct.activatedAt;
+          // Kes tambahan: Aktiviti Aktif di tempatan, status cloud berbeza (tertangguh/belum sync)
+          // Kekalkan date & time tempatan juga
+          if (localAct.status === 'Aktif' && cloudAct.status !== 'Selesai') {
+            if (localAct.date) cloudAct.date = localAct.date;
+            if (localAct.time !== undefined && localAct.time !== null) cloudAct.time = localAct.time;
           }
-          // Kes 3: Admin tutup aktiviti secara tempatan (Selesai) tapi cloud masih Aktif
+          // Kes 2: Admin tutup aktiviti secara tempatan (Selesai) tapi cloud masih Aktif
           // → Hormati keputusan tempatan, jangan "hidupkan semula"
           if (localAct.status === 'Selesai' && cloudAct.status === 'Aktif') {
             cloudAct.status         = 'Selesai';
@@ -1799,506 +1811,6 @@ function saveCloudAPI() {
 }
 
 // BACKEND APPS SCRIPT CODE GENERATION FOR CLOUD SHEETS
-function copyAppsScriptCode() {
-  const code = `/**
- * ╔══════════════════════════════════════════════════════════════════════╗
- * ║        EduTrack — Google Apps Script Backend (Versi Optimum)        ║
- * ║        Dengan CacheService untuk prestasi tinggi & ramai pengguna   ║
- * ╠══════════════════════════════════════════════════════════════════════╣
- * ║  CARA PASANG:                                                        ║
- * ║  1. Buka Google Sheets anda                                          ║
- * ║  2. Extensions → Apps Script                                         ║
- * ║  3. Padam semua kod lama, tampal kod ini sepenuhnya                  ║
- * ║  4. Klik Deploy → New Deployment → Web App                          ║
- * ║  5. Execute as: Me | Who has access: Anyone                          ║
- * ║  6. Klik Deploy & salin URL Web App ke tetapan EduTrack             ║
- * ╚══════════════════════════════════════════════════════════════════════╝
- *
- * PERUBAHAN BERBANDING VERSI LAMA:
- * ✅ CacheService — getAllData dikache 25 saat (kurang baca Sheets)
- * ✅ Cache automatik dibersihkan bila data berubah (tulis/padam)
- * ✅ LockService — elak race condition bila ramai pengguna serentak
- * ✅ Pengesahan input asas untuk keselamatan
- * ✅ Komen lengkap untuk setiap bahagian
- */
-
-// ═══════════════════════════════════════════════════════════
-// NAMA SHEET — JANGAN UBAH melainkan nama sheet anda berbeza
-// ═══════════════════════════════════════════════════════════
-const SHEET_NAME_USERS    = "Pelajar";
-const SHEET_NAME_ACT      = "Aktiviti";
-const SHEET_NAME_ATT      = "Kehadiran";
-const SHEET_NAME_ANN      = "Pengumuman";
-const SHEET_NAME_CONFIG   = "Konfigurasi";
-const SHEET_NAME_SESSIONS = "Sesi";
-const SHEET_NAME_VISITOR  = "PelawatLog";
-
-// Tempoh cache getAllData dalam saat (25 saat = sesuai dengan sync 30s klien)
-const CACHE_TTL_SECONDS = 25;
-const CACHE_KEY_ALLDATA = "edutrack_alldata_v1";
-
-// ═══════════════════════════════════════════════════════════
-// doGet — Untuk permintaan GET (sync data ke klien)
-// ═══════════════════════════════════════════════════════════
-function doGet(e) {
-  try {
-    const action = e.parameter.action;
-
-    if (action === "getAllData") {
-      // Cuba ambil dari cache dahulu
-      const cache = CacheService.getScriptCache();
-      const cached = cache.get(CACHE_KEY_ALLDATA);
-
-      if (cached) {
-        // Cache ada — pulangkan terus tanpa baca Sheets (jimat masa & kuota)
-        return ContentService.createTextOutput(cached)
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-
-      // Cache kosong — baca dari Sheets dan simpan ke cache
-      const data = retrieveDatabaseData();
-      const json = JSON.stringify(data);
-
-      // Simpan ke cache (max 25 saat, Google Cache maksimum 6 jam)
-      try { cache.put(CACHE_KEY_ALLDATA, json, CACHE_TTL_SECONDS); } catch(ce) {}
-
-      return ContentService.createTextOutput(json)
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === "getSession") {
-      // Session tidak dicache — mesti sentiasa terkini
-      const result = getSessionLock(e.parameter.key || "");
-      return ContentService.createTextOutput(JSON.stringify(result))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Tindakan GET tidak dikenali." }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// doPost — Untuk permintaan POST (tulis/kemaskini data)
-// ═══════════════════════════════════════════════════════════
-function doPost(e) {
-  try {
-    const postData = JSON.parse(e.postData.contents);
-    const action = postData.action;
-    const doc = SpreadsheetApp.getActiveSpreadsheet();
-
-    // ── PELAJAR ──────────────────────────────────────────
-    if (action === "addStudent") {
-      if (!postData.matric || !postData.name) {
-        return jsonOut({ status: "error", message: "Matrik dan nama diperlukan." });
-      }
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_USERS,
-        ["Nama","Matrik","Program","Semester","Kumpulan","Telefon","Email","Katalaluan","TarikhDaftar","Avatar","SkorSahsiah","Tags","Nota"]);
-
-      // Gunakan LockService — elak dua pengguna tulis serentak
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        deleteRowByValue(sheet, 2, postData.matric);
-        sheet.appendRow([
-          postData.name, postData.matric, postData.progtype || "", postData.semester || "",
-          postData.class || "", postData.phone || "", postData.email || "", postData.pass || "",
-          new Date().toISOString(), postData.avatar || "", 100, "", ""
-        ]);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache(); // Bersihkan cache supaya sync seterusnya dapat data terkini
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "deleteStudent") {
-      if (!postData.matric) return jsonOut({ status: "error", message: "Matrik diperlukan." });
-      const sheet = doc.getSheetByName(SHEET_NAME_USERS);
-      const attSheet = doc.getSheetByName(SHEET_NAME_ATT);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        if (sheet) deleteRowByValue(sheet, 2, postData.matric);
-        if (attSheet && attSheet.getLastRow() > 1) {
-          const vals = attSheet.getDataRange().getValues();
-          for (let i = vals.length - 1; i >= 1; i--) {
-            if (String(vals[i][1]) === String(postData.matric)) attSheet.deleteRow(i + 1);
-          }
-        }
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── AKTIVITI ──────────────────────────────────────────
-    if (action === "addActivity") {
-      if (!postData.id || !postData.name) return jsonOut({ status: "error", message: "ID dan nama aktiviti diperlukan." });
-
-      // Abaikan entri laporan (id bermula dengan "report_") — simpan dalam Config sahaja
-      if (postData.id && postData.id.startsWith("report_")) {
-        // Simpan laporan ke Config
-        const cfgSheet = getOrCreateSheet(doc, SHEET_NAME_CONFIG, ["Kunci","Nilai"]);
-        const key = postData.id;
-        const val = JSON.stringify({ actId: postData.actId, actName: postData.actName, reports: postData.reports, savedBy: postData.savedBy, savedAt: postData.savedAt });
-        upsertConfig(cfgSheet, key, val);
-        invalidateCache();
-        return jsonOut({ status: "success" });
-      }
-
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_ACT,
-        ["ID","Jenis","Nama","Penerangan","Tarikh","Masa","Lokasi","Status","PIN","Duration","ActivatedAt","TimerStartedAt","KumpulanSasaran"]);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        deleteRowByValue(sheet, 1, postData.id);
-        sheet.appendRow([
-          postData.id, postData.type || "", postData.name, postData.desc || "",
-          postData.date || "", postData.time || "", postData.loc || "",
-          postData.status || "Selesai", postData.pin || "", postData.duration || 0,
-          postData.activatedAt || "", postData.timerStartedAt || "",
-          Array.isArray(postData.targetGroups) ? postData.targetGroups.join(',') : (postData.targetGroups || 'Semua')
-        ]);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "deleteActivity") {
-      if (!postData.id) return jsonOut({ status: "error", message: "ID aktiviti diperlukan." });
-      const sheet = doc.getSheetByName(SHEET_NAME_ACT);
-      const attSheet = doc.getSheetByName(SHEET_NAME_ATT);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        if (sheet) deleteRowByValue(sheet, 1, postData.id);
-        if (attSheet && attSheet.getLastRow() > 1) {
-          const vals = attSheet.getDataRange().getValues();
-          for (let i = vals.length - 1; i >= 1; i--) {
-            if (String(vals[i][2]) === String(postData.id)) attSheet.deleteRow(i + 1);
-          }
-        }
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── KEHADIRAN ─────────────────────────────────────────
-    if (action === "recordAttendance") {
-      if (!postData.matric || !postData.actId) {
-        return jsonOut({ status: "error", message: "Matrik dan ID aktiviti diperlukan." });
-      }
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_ATT,
-        ["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
-
-      // Gunakan lock — penting bila ramai pelajar scan serentak
-      const lock = LockService.getScriptLock();
-      lock.waitLock(15000);
-      try {
-        // Semak pertindihan
-        if (sheet.getLastRow() > 1) {
-          const vals = sheet.getDataRange().getValues();
-          for (let i = 1; i < vals.length; i++) {
-            if (String(vals[i][1]) === String(postData.matric) && String(vals[i][2]) === String(postData.actId)) {
-              return jsonOut({ status: "warn", message: "Kehadiran pelajar ini sudah pun direkodkan untuk amali semasa." });
-            }
-          }
-        }
-        sheet.appendRow([
-          "r" + Date.now(), postData.matric, postData.actId,
-          new Date().toISOString(), "present", postData.recordedBy || ""
-        ]);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "attendanceBulkOverwrite") {
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_ATT,
-        ["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(15000);
-      try {
-        sheet.clear();
-        sheet.appendRow(["ID","Matrik","AktivitiID","TarikhMasa","Status","DirekodOleh"]);
-        const rows = (postData.list || []).map(r => [r.id, r.matric, r.actId, r.date, r.status, r.by || ""]);
-        if (rows.length > 0) sheet.getRange(2, 1, rows.length, 6).setValues(rows);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── PENGUMUMAN ────────────────────────────────────────
-    if (action === "addAnnouncement") {
-      if (!postData.id) return jsonOut({ status: "error", message: "ID pengumuman diperlukan." });
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_ANN,
-        ["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        sheet.appendRow([
-          postData.id, postData.title || "", postData.content || "",
-          postData.date || "", postData.image || "", postData.video || "",
-          postData.audio || "", postData.link || "", postData.by || ""
-        ]);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "addAnnouncementBulkOverwrite") {
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_ANN,
-        ["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        sheet.clear();
-        sheet.appendRow(["ID","Tajuk","Kandungan","Tarikh","Gambar","Video","Audio","Pautan","Penulis"]);
-        const rows = (postData.list || []).map(an => [an.id, an.title || "", an.content || "", an.date || "", an.image || "", an.video || "", an.audio || "", an.link || "", an.by || ""]);
-        if (rows.length > 0) sheet.getRange(2, 1, rows.length, 9).setValues(rows);
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "deleteAnnouncement") {
-      const sheet = doc.getSheetByName(SHEET_NAME_ANN);
-      if (sheet) {
-        const lock = LockService.getScriptLock();
-        lock.waitLock(10000);
-        try { deleteRowByValue(sheet, 1, postData.id); } finally { lock.releaseLock(); }
-      }
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── KONFIGURASI ───────────────────────────────────────
-    if (action === "saveConfig") {
-      if (!postData.key) return jsonOut({ status: "error", message: "Kunci konfigurasi diperlukan." });
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_CONFIG, ["Kunci","Nilai"]);
-
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        upsertConfig(sheet, postData.key, JSON.stringify(postData.value));
-      } finally { lock.releaseLock(); }
-
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── SAHSIAH PELAJAR ───────────────────────────────────
-    if (action === "updateBehavior") {
-      if (!postData.matric) return jsonOut({ status: "error", message: "Matrik diperlukan." });
-      const sheet = doc.getSheetByName(SHEET_NAME_USERS);
-      if (sheet && sheet.getLastRow() > 1) {
-        const lock = LockService.getScriptLock();
-        lock.waitLock(10000);
-        try {
-          const data = sheet.getDataRange().getValues();
-          for (let i = 1; i < data.length; i++) {
-            if (String(data[i][1]) === String(postData.matric)) {
-              sheet.getRange(i + 1, 11).setValue(postData.score);
-              sheet.getRange(i + 1, 12).setValue((postData.tags || []).join(","));
-              sheet.getRange(i + 1, 13).setValue(postData.note || "");
-              break;
-            }
-          }
-        } finally { lock.releaseLock(); }
-      }
-      invalidateCache();
-      return jsonOut({ status: "success" });
-    }
-
-    // ── PELAWAT ───────────────────────────────────────────
-    if (action === "addVisitor") {
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_VISITOR, ["Matrik","Nama","Masa","Aktiviti"]);
-      sheet.appendRow([postData.matric || "", postData.name || "", postData.time || new Date().toISOString(), postData.activity || ""]);
-      // Pelawat tidak invalidate cache utama — data kecil & tidak kritikal
-      return jsonOut({ status: "success" });
-    }
-
-    // ── SESI / SESSION LOCK ───────────────────────────────
-    if (action === "sessionLock") {
-      const sheet = getOrCreateSheet(doc, SHEET_NAME_SESSIONS, ["Kunci","Token","Peranti","Masa"]);
-      const lock = LockService.getScriptLock();
-      lock.waitLock(10000);
-      try {
-        const data = sheet.getLastRow() > 1 ? sheet.getDataRange().getValues() : [[]];
-        let found = false;
-        for (let i = 1; i < data.length; i++) {
-          if (data[i][0] === postData.key) {
-            sheet.getRange(i + 1, 2, 1, 3).setValues([[postData.token, postData.device || "", postData.ts || new Date().toISOString()]]);
-            found = true;
-            break;
-          }
-        }
-        if (!found) sheet.appendRow([postData.key, postData.token, postData.device || "", postData.ts || new Date().toISOString()]);
-      } finally { lock.releaseLock(); }
-      return jsonOut({ status: "success" });
-    }
-
-    if (action === "clearSession") {
-      const sheet = doc.getSheetByName(SHEET_NAME_SESSIONS);
-      if (sheet) {
-        const lock = LockService.getScriptLock();
-        lock.waitLock(10000);
-        try { deleteRowByValue(sheet, 1, postData.key); } finally { lock.releaseLock(); }
-      }
-      return jsonOut({ status: "success" });
-    }
-
-    return jsonOut({ status: "error", message: "Tindakan POST tidak dikenali: " + action });
-
-  } catch(err) {
-    return jsonOut({ status: "error", message: err.toString() });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// FUNGSI PEMBANTU
-// ═══════════════════════════════════════════════════════════
-
-/** Kembalikan respons JSON */
-function jsonOut(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Bersihkan cache getAllData.
- * Dipanggil setiap kali data berubah supaya permintaan sync seterusnya
- * mendapat data terkini dari Sheets, bukan dari cache lama.
- */
-function invalidateCache() {
-  try {
-    CacheService.getScriptCache().remove(CACHE_KEY_ALLDATA);
-  } catch(e) {}
-}
-
-/** Dapatkan sheet sedia ada atau cipta baharu dengan pengepala */
-function getOrCreateSheet(doc, name, headers) {
-  let sheet = doc.getSheetByName(name);
-  if (!sheet) {
-    sheet = doc.insertSheet(name);
-    sheet.appendRow(headers);
-  } else if (sheet.getLastRow() === 0) {
-    sheet.appendRow(headers);
-  }
-  return sheet;
-}
-
-/** Kemaskini baris wujud atau tambah baris baharu dalam sheet konfigurasi */
-function upsertConfig(sheet, key, valueStr) {
-  if (sheet.getLastRow() > 1) {
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === key) {
-        sheet.getRange(i + 1, 2).setValue(valueStr);
-        return;
-      }
-    }
-  }
-  sheet.appendRow([key, valueStr]);
-}
-
-/** Padam baris berdasarkan nilai dalam lajur tertentu */
-function deleteRowByValue(sheet, colIdx, val) {
-  if (!sheet || sheet.getLastRow() <= 1) return;
-  const vals = sheet.getDataRange().getValues();
-  for (let i = vals.length - 1; i >= 1; i--) {
-    if (String(vals[i][colIdx - 1]) === String(val)) {
-      sheet.deleteRow(i + 1);
-    }
-  }
-}
-
-/** Baca kunci sesi dari sheet Sesi */
-function getSessionLock(key) {
-  const doc = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = doc.getSheetByName(SHEET_NAME_SESSIONS);
-  if (!sheet || sheet.getLastRow() <= 1) return null;
-  const vals = sheet.getDataRange().getValues();
-  for (let i = 1; i < vals.length; i++) {
-    if (vals[i][0] === key) {
-      return { key: vals[i][0], token: vals[i][1], device: vals[i][2], ts: vals[i][3] };
-    }
-  }
-  return null;
-}
-
-/**
- * Baca semua data dari Sheets dan kembalikan sebagai objek JSON.
- * Fungsi ini HANYA dipanggil apabila cache kosong/tamat tempoh.
- */
-function retrieveDatabaseData() {
-  const doc = SpreadsheetApp.getActiveSpreadsheet();
-  return {
-    users:         getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_USERS)),
-    activities:    getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ACT)),
-    attendance:    getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ATT)),
-    announcements: getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_ANN)),
-    visitors:      getSheetRowsJSON(doc.getSheetByName(SHEET_NAME_VISITOR)),
-    config:        getConfigJSON(doc.getSheetByName(SHEET_NAME_CONFIG))
-  };
-}
-
-/** Tukar sheet konfigurasi kepada objek {kunci: nilai} */
-function getConfigJSON(sheet) {
-  const out = {};
-  if (!sheet || sheet.getLastRow() <= 1) return out;
-  const vals = sheet.getDataRange().getValues();
-  for (let i = 1; i < vals.length; i++) {
-    const k = vals[i][0], v = vals[i][1];
-    if (!k) continue;
-    try { out[k] = JSON.parse(v); } catch(e) { out[k] = v; }
-  }
-  return out;
-}
-
-/** Tukar sheet kepada array objek JSON berdasarkan baris pengepala */
-function getSheetRowsJSON(sheet) {
-  if (!sheet || sheet.getLastRow() <= 1) return [];
-  const vals = sheet.getDataRange().getValues();
-  const headers = vals[0];
-  const list = [];
-  for (let i = 1; i < vals.length; i++) {
-    // Langkau baris kosong sepenuhnya
-    if (vals[i].every(cell => cell === "" || cell === null || cell === undefined)) continue;
-    const row = {};
-    for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = vals[i][j];
-    }
-    list.push(row);
-  }
-  return list;
-}
-`;
-
-  const dummy = document.createElement('textarea');
-  document.body.appendChild(dummy);
-  dummy.value = code;
-  dummy.select();
-  document.execCommand('copy');
-  document.body.removeChild(dummy);
-  toast('📋 Kod pelayan Apps Script disalin ke papan klip peranti!', 'success');
-}
 
 function factoryResetLocal() {
   const cloudOk = !!API_URL;
@@ -2376,7 +1888,6 @@ function logVisit(u, roleLabel) {
   try {
     let activityLabel = roleLabel;
     if (!activityLabel) {
-      // Pelajar: tunjukkan aktiviti aktif semasa log masuk
       const acts = DB.get('activities') || [];
       const activeAct = acts.find(a => a.status === 'Aktif');
       activityLabel = activeAct ? `📚 ${activeAct.name}` : '— Tiada Aktiviti Aktif';
@@ -2386,12 +1897,43 @@ function logVisit(u, roleLabel) {
       matric: u.matric,
       name: u.name,
       time: now.toISOString(),
+      timeOut: '',
+      jenis: 'Masuk',
       activity: activityLabel
     };
     const visits = DB.get('visitor_log') || [];
     visits.push(entry);
     DB.set('visitor_log', visits);
     if (API_URL) cloudPost('addVisitor', entry).catch(()=>{});
+  } catch(e) {}
+}
+
+// Log keluar pengguna — rekod masa keluar pada entri log masuk terakhir
+function logVisitOut(matric, name, roleLabel) {
+  try {
+    const now = new Date();
+    const timeOutISO = now.toISOString();
+    const visits = DB.get('visitor_log') || [];
+    // Cari entri log masuk terakhir untuk pengguna ini yang belum ada masa keluar
+    for (let i = visits.length - 1; i >= 0; i--) {
+      if (visits[i].matric === matric && (!visits[i].timeOut || visits[i].timeOut === '')) {
+        visits[i].timeOut = timeOutISO;
+        visits[i].jenis = 'Masuk/Keluar';
+        break;
+      }
+    }
+    // Tambah juga entri keluar baharu
+    const exitEntry = {
+      matric: matric,
+      name: name,
+      time: timeOutISO,
+      timeOut: '',
+      jenis: 'Keluar',
+      activity: roleLabel || '— Log Keluar'
+    };
+    visits.push(exitEntry);
+    DB.set('visitor_log', visits);
+    if (API_URL) cloudPost('addVisitor', exitEntry).catch(()=>{});
   } catch(e) {}
 }
 
@@ -2437,12 +1979,22 @@ async function doAdminLogin(){
 
 function doLogout(){
   stopScanner();
-  if (CU) releaseSession('stu_' + CU.matric);
+  if (CU) {
+    logVisitOut(CU.matric, CU.name, '🎓 Pelajar — Log Keluar Sistem');
+    releaseSession('stu_' + CU.matric);
+  }
   DB.del('session_s'); CU=null;
   document.getElementById('stu-app').classList.add('hidden'); showAuth(); applyCustomLogo();
 }
 function doAdminLogout(){
   stopAdminScanner(); stopSessionMonitor();
+  // Rekod masa keluar admin/pemantau
+  const role = DB.get('session_role') || '';
+  let logoutMatric = 'ADMIN', logoutName = 'Admin', logoutLabel = '🛡️ Admin — Log Keluar Sistem';
+  if (role === 'main_admin') { logoutMatric = 'ADMIN'; logoutName = 'Admin Utama'; logoutLabel = '🛡️ Admin Utama — Log Keluar Sistem'; }
+  else if (role === 'sub_admin') { logoutMatric = 'SUBADM'; logoutName = 'Admin Tambahan'; logoutLabel = '🛡️ Admin Tambahan — Log Keluar Sistem'; }
+  else if (role === 'pemantau') { logoutMatric = 'PEMANTAU'; logoutName = 'Pemantau'; logoutLabel = '👁️ Pemantau — Log Keluar Sistem'; }
+  logVisitOut(logoutMatric, logoutName, logoutLabel);
   DB.del('session_a'); DB.del('session_p'); DB.del('session_role'); DB.del('session_lock_key');
   ADMIN=false; PEMANTAU=false; IS_MAIN_ADMIN=false; IS_SUB_ADMIN=false;
   document.body.classList.remove('mode-pemantau');
@@ -3078,13 +2630,25 @@ function renderVisitorStats() {
 
   const listEl = document.getElementById('visitor-log-list');
   if (!listEl) return;
-  const recent = [...visits].reverse().slice(0, 30);
+  const recent = [...visits].reverse().slice(0, 50);
   listEl.innerHTML = recent.length ? recent.map(v => {
     const d = new Date(v.time);
     const dateStr = d.toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric'});
     const timeStr = d.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
-    return `<div class="li"><div class="linfo"><div class="ltitle">${v.name}</div><div class="lsub">${v.matric} · ${dateStr} ${timeStr} · 📌 ${v.activity}</div></div></div>`;
-  }).join('') : '<div class="empty">Tiada rekod pelawat lagi.</div>';
+    // Masa keluar
+    let timeOutStr = '—';
+    if (v.timeOut && v.timeOut !== '') {
+      const dOut = new Date(v.timeOut);
+      timeOutStr = dOut.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
+    }
+    // Warna & ikon ikut jenis
+    const jenis = v.jenis || 'Masuk';
+    const isKeluar = jenis === 'Keluar';
+    const dotColor = isKeluar ? 'var(--danger)' : 'var(--a3)';
+    const icon = isKeluar ? '🔴' : '🟢';
+    const timeOutInfo = !isKeluar ? ` · Keluar: <span style="color:${v.timeOut ? 'var(--a3)' : 'var(--t2)'}">${timeOutStr}</span>` : '';
+    return `<div class="li"><div class="ldot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></div><div class="linfo"><div class="ltitle">${icon} ${v.name} <span style="font-size:10px;font-weight:600;color:var(--t2);">(${jenis})</span></div><div class="lsub">${v.matric} · ${dateStr} · Masuk: ${timeStr}${timeOutInfo} · 📌 ${v.activity}</div></div></div>`;
+  }).join('') : '<div class="empty">Tiada rekod log masuk/keluar lagi.</div>';
 }
 
 async function generateSessionPin(actId) {
@@ -3167,10 +2731,19 @@ async function toggleActSt(id) {
       a.timerStartedAt = null;
     } else {
       a.status = 'Aktif';
-      a.activatedAt = new Date().toISOString();
+      // Set activatedAt baharu hanya jika tiada — elak reset masa sesi yang sudah ada
+      if (!a.activatedAt) {
+        a.activatedAt = new Date().toISOString();
+      }
       const schedMs = parseSchedMs(a.date, a.time);
-      a.timerStartedAt = Date.now() >= schedMs ? a.activatedAt : null;
+      // Set timerStartedAt jika belum ada dan masa jadual sudah tiba
+      if (!a.timerStartedAt && Date.now() >= schedMs) {
+        a.timerStartedAt = a.activatedAt;
+      }
     }
+    // Pastikan date & time dalam format teks selamat sebelum hantar ke cloud
+    if (a.date) a.date = String(a.date).trim();
+    if (a.time) a.time = String(a.time).trim().slice(0,5);
     acts[idx] = a;
     // Simpan tempatan DULU supaya UI serta-merta terkini dan tak terjejas oleh sync berikutnya
     DB.set('activities', acts);
@@ -3292,7 +2865,11 @@ async function saveAct(){
     }
   }
   
-  const payload = { id: id||'a'+Date.now(), type, name, desc, date, time, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
+  // Pastikan date & time disimpan dalam format teks yang konsisten
+  // Format YYYY-MM-DD dan HH:MM — Sheets tidak akan autotukar format ini
+  const safeDateStr = date ? String(date).trim() : '';
+  const safeTimeStr = time ? String(time).trim().slice(0,5) : '00:00';
+  const payload = { id: id||'a'+Date.now(), type, name, desc, date: safeDateStr, time: safeTimeStr, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
   
   // Simpan tempatan DULU — UI serta-merta terkini
   if(id){ const i=acts.findIndex(a=>a.id===id); if(i>-1) acts[i]=payload; } else { acts.push(payload); }
@@ -4643,13 +4220,35 @@ function delAnn(id) { if (guardWrite('announcements')) return; let anns = DB.get
 function normalizeDateStr(val) {
   if (!val) return '';
   const s = String(val).trim();
+  // Format betul: YYYY-MM-DD — terus pulang
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Format ISO (YYYY-MM-DDTHH:mm...) — ambil bahagian tarikh sahaja
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
+  // Format DD/MM/YYYY atau D/M/YYYY (format Malaysia biasa)
+  const dmyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const d2 = String(dmyMatch[1]).padStart(2,'0');
+    const m2 = String(dmyMatch[2]).padStart(2,'0');
+    return `${dmyMatch[3]}-${m2}-${d2}`;
+  }
+  // Format MM/DD/YYYY (format US — jarang tapi ada)
+  const mdyMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (mdyMatch) {
+    const yr = mdyMatch[3].length === 2 ? '20' + mdyMatch[3] : mdyMatch[3];
+    const m2 = String(mdyMatch[1]).padStart(2,'0');
+    const d2 = String(mdyMatch[2]).padStart(2,'0');
+    return `${yr}-${m2}-${d2}`;
+  }
+  // Serial number Excel/Sheets — PENTING: tambah 0.5 hari untuk elak isu timezone
+  // Sheets serial dikira dalam local time, bukan UTC
   const num = Number(val);
   if (!isNaN(num) && num > 1000) {
-    const msFromEpoch = (num - 25569) * 86400000;
+    // Tambah separuh hari (0.5) supaya pembundaran tidak terjejas timezone
+    const msFromEpoch = (num - 25569 + 0.5) * 86400000;
     const d = new Date(msFromEpoch);
-    const y = d.getUTCFullYear(), mo = String(d.getUTCMonth()+1).padStart(2,'0'), dy = String(d.getUTCDate()).padStart(2,'0');
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dy = String(d.getUTCDate()).padStart(2,'0');
     return `${y}-${mo}-${dy}`;
   }
   return s;
@@ -4660,16 +4259,26 @@ function normalizeDateStr(val) {
 function normalizeTimeStr(val) {
   if (!val) return '00:00';
   const s = String(val).trim();
-  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
+  // Format HH:MM atau H:MM — terus pulang (format paling biasa & paling dipercayai)
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) return s.slice(0,5);
+  // Format ISO datetime — ambil bahagian masa dari teks terus (elak isu timezone)
+  // Sheets hantar: "1899-12-30T07:00:00.000Z" untuk masa 07:00
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+    // Ambil terus dari teks "THH:MM" — paling selamat, elak new Date() timezone issue
+    const tIdx = s.indexOf('T');
+    if (tIdx !== -1) {
+      const timePart = s.slice(tIdx + 1, tIdx + 6); // "HH:MM"
+      if (/^\d{2}:\d{2}$/.test(timePart)) return timePart;
+    }
+    // Fallback: guna getUTCHours
     const d = new Date(s);
-    const h = String(d.getUTCHours()).padStart(2,'0');
-    const m = String(d.getUTCMinutes()).padStart(2,'0');
-    return `${h}:${m}`;
+    return String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
   }
+  // Nombor perpuluhan Sheets (0.0–1.0): 0.291666... = 07:00
   const num = Number(val);
   if (!isNaN(num) && num >= 0 && num < 1) {
-    const totalMins = Math.round(num * 1440);
+    // Gunakan floor bukan round untuk elak 07:00 jadi 07:01
+    const totalMins = Math.floor(num * 1440 + 0.5);
     const h = String(Math.floor(totalMins / 60)).padStart(2,'0');
     const m = String(totalMins % 60).padStart(2,'0');
     return `${h}:${m}`;
@@ -4691,15 +4300,23 @@ function parseSchedMs(dateStr, timeStr) {
 }
 
 function getActualTimerStart(a) {
-  // timerStartedAt = masa admin mula secara manual
-  // Jika tiada, gunakan masa jadual (jika sudah tiba)
+  // KEUTAMAAN 1: timerStartedAt — masa admin mula secara manual (paling dipercayai)
   if (a.timerStartedAt) {
     const ts = new Date(a.timerStartedAt).getTime();
     if (!isNaN(ts)) return ts;
   }
+  // KEUTAMAAN 2: activatedAt — masa aktiviti diaktifkan
+  // PENTING: Jika activatedAt ada, JANGAN fallback ke schedMs
+  // kerana schedMs boleh berubah apabila admin edit tarikh/masa aktiviti
+  if (a.activatedAt) {
+    const ts = new Date(a.activatedAt).getTime();
+    if (!isNaN(ts)) return ts;
+  }
+  // KEUTAMAAN 3: Fallback ke masa jadual HANYA jika tiada activatedAt langsung
+  // (aktiviti Aktif tapi tiada rekod masa mula — kes lama/migrasi)
   const schedMs = parseSchedMs(a.date, a.time);
   const now = Date.now();
-  if (now >= schedMs) return schedMs; // jadual dah tiba, mula kira
+  if (now >= schedMs) return schedMs;
   return null; // jadual belum tiba
 }
 
