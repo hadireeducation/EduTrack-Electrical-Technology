@@ -536,8 +536,15 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     </div>
 
     <div class="card">
-      <div class="card-hdr">📊 Analisis Kehadiran Mingguan</div>
+      <div class="card-hdr">📊 Analisis Kehadiran</div>
+      <div style="display:flex;gap:4px;margin-bottom:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;">
+        <button id="stu-chart-tab-day" class="tab" style="font-size:10px;padding:5px 4px;" onclick="setStuChartMode('day')">📅 Harian</button>
+        <button id="stu-chart-tab-week" class="tab active" style="font-size:10px;padding:5px 4px;" onclick="setStuChartMode('week')">📆 Mingguan</button>
+        <button id="stu-chart-tab-month" class="tab" style="font-size:10px;padding:5px 4px;" onclick="setStuChartMode('month')">🗓 Bulanan</button>
+        <button id="stu-chart-tab-year" class="tab" style="font-size:10px;padding:5px 4px;" onclick="setStuChartMode('year')">📈 Tahunan</button>
+      </div>
       <div id="stu-weekly-chart" class="chart-container"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.5;"><span style="color:var(--a3);">■</span> ≥80% <span style="color:var(--warn);">■</span> 60-79% <span style="color:var(--danger);">■</span> &lt;60% — Bar hanya muncul jika ada rekod.</div>
     </div>
 
     <div class="card" style="display:flex;align-items:center;gap:16px;padding:14px 16px;">
@@ -759,9 +766,44 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       <div id="adm-ann-list" style="max-height: 600px; overflow-y: auto;"></div>
     </div>
 
+
+    <!-- CARTA 1: Semua (Aktiviti + Program) -->
     <div class="card">
-      <div class="card-hdr">📊 Kadar Kehadiran Mingguan (Kolektif)</div>
-      <div id="adm-weekly-chart" class="chart-container"></div>
+      <div class="card-hdr">📊 Kadar Kehadiran — Semua</div>
+      <div style="display:flex;gap:4px;margin-bottom:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;">
+        <button id="adm-chart-tab-all-day"   class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('all','day')">📅 Harian</button>
+        <button id="adm-chart-tab-all-week"  class="tab active" style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('all','week')">📆 Mingguan</button>
+        <button id="adm-chart-tab-all-month" class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('all','month')">🗓 Bulanan</button>
+        <button id="adm-chart-tab-all-year"  class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('all','year')">📈 Tahunan</button>
+      </div>
+      <div id="adm-chart-all" class="chart-container"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.5;">💡 Gabungan Aktiviti &amp; Program. Peratus = Hadir ÷ Sasaran. <span style="color:var(--a3);">■</span> ≥80% <span style="color:var(--warn);">■</span> 60-79% <span style="color:var(--danger);">■</span> &lt;60%</div>
+    </div>
+
+    <!-- CARTA 2: Aktiviti sahaja -->
+    <div class="card">
+      <div class="card-hdr">🎓 Kadar Kehadiran — Aktiviti</div>
+      <div style="display:flex;gap:4px;margin-bottom:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;">
+        <button id="adm-chart-tab-Aktiviti-day"   class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Aktiviti','day')">📅 Harian</button>
+        <button id="adm-chart-tab-Aktiviti-week"  class="tab active" style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Aktiviti','week')">📆 Mingguan</button>
+        <button id="adm-chart-tab-Aktiviti-month" class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Aktiviti','month')">🗓 Bulanan</button>
+        <button id="adm-chart-tab-Aktiviti-year"  class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Aktiviti','year')">📈 Tahunan</button>
+      </div>
+      <div id="adm-chart-Aktiviti" class="chart-container"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.5;">💡 Kuliah / Lab / Tutorial sahaja. <span style="color:var(--a3);">■</span> ≥80% <span style="color:var(--warn);">■</span> 60-79% <span style="color:var(--danger);">■</span> &lt;60%</div>
+    </div>
+
+    <!-- CARTA 3: Program sahaja -->
+    <div class="card">
+      <div class="card-hdr">🎪 Kadar Kehadiran — Program</div>
+      <div style="display:flex;gap:4px;margin-bottom:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:3px;">
+        <button id="adm-chart-tab-Program-day"   class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Program','day')">📅 Harian</button>
+        <button id="adm-chart-tab-Program-week"  class="tab active" style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Program','week')">📆 Mingguan</button>
+        <button id="adm-chart-tab-Program-month" class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Program','month')">🗓 Bulanan</button>
+        <button id="adm-chart-tab-Program-year"  class="tab"        style="font-size:10px;padding:5px 4px;" onclick="setAdmChartMode('Program','year')">📈 Tahunan</button>
+      </div>
+      <div id="adm-chart-Program" class="chart-container"></div>
+      <div style="font-size:10px;color:var(--t2);margin-top:6px;line-height:1.5;">💡 Kokurikulum / Majlis / Sukan sahaja. <span style="color:var(--a3);">■</span> ≥80% <span style="color:var(--warn);">■</span> 60-79% <span style="color:var(--danger);">■</span> &lt;60%</div>
     </div>
 
     <div class="card">
@@ -1111,6 +1153,11 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       </div>
       <div style="font-size:10px;color:var(--t2);margin-top:4px;">💡 Pilih "Semua Pelajar" atau tandakan kumpulan tertentu. Ini mempengaruhi laporan kehadiran.</div>
     </div>
+    <div class="fg">
+      <label class="fl">Jumlah Sasaran Hadir</label>
+      <input type="number" class="fi" id="ea-target-count" placeholder="Cth: 30 (kosongkan = auto dari kumpulan)" min="0" style="font-family:'Space Mono',monospace;">
+      <div style="font-size:10px;color:var(--t2);margin-top:4px;">💡 Kosongkan untuk kira automatik dari jumlah pelajar dalam kumpulan sasaran. Digunakan untuk pengiraan peratus kehadiran carta.</div>
+    </div>
     <div class="fg"><label class="fl">Status Awal</label><select class="fs" id="ea-status"><option value="Aktif">🟢 Aktif (Buka)</option><option value="Selesai">✅ Selesai (Tutup)</option><option value="Dibatalkan">❌ Dibatalkan</option></select></div>
     <div style="display:flex;gap:8px;"><button class="btn bs" style="flex:1;" onclick="closeM('m-act')">Batal</button><button class="btn ba" style="flex:2;" onclick="saveAct()">💾 Simpan Aktiviti</button></div>
   </div>
@@ -1357,7 +1404,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbxzNpdn9R-XfWJmaqs7ODBOS5etxDzuGDAlAlNUCY1hwkuWqa_iuJ_bIQqrjABb1dpV/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzmovBK8y6FyTdTAGwPZyro75Jfs-Mce7G50qBOZA7vd9WGbHKmZftSd2Kh5KHZx74v/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1681,7 +1728,6 @@ async function syncAllCloud(silent = false) {
           type:         a.Jenis || '',
           name:         a.Nama || '',
           desc:         a.Penerangan || '',
-          // Normalisasi tarikh & masa — elak format ISO penuh atau serial number dari Sheets
           date:         normalizeDateStr(a.Tarikh),
           time:         normalizeTimeStr(a.Masa),
           loc:          a.Lokasi || '',
@@ -1694,7 +1740,10 @@ async function syncAllCloud(silent = false) {
             ? (typeof a.KumpulanSasaran === 'string'
                 ? a.KumpulanSasaran.split(',').map(s => s.trim()).filter(Boolean)
                 : a.KumpulanSasaran)
-            : ['Semua']
+            : ['Semua'],
+          targetCount: (a.JumlahSasaran !== undefined && a.JumlahSasaran !== null && a.JumlahSasaran !== '')
+            ? (parseInt(a.JumlahSasaran) || null)
+            : null
         };
 
         // Cari padanan dalam snapshot tempatan
@@ -2874,12 +2923,14 @@ function getSelectedGroups() {
   return checked.length > 0 ? checked : ['Semua'];
 }
 
-function openAddAct(){if(guardWrite('activities'))return;document.getElementById('m-act-ttl').textContent='Tambah Aktiviti / Program';document.getElementById('ea-id').value='';document.getElementById('ea-type').value='Aktiviti';document.getElementById('ea-name').value='';document.getElementById('ea-desc').value='';document.getElementById('ea-date').value=todayStr();document.getElementById('ea-time').value='';document.getElementById('ea-duration').value='0';document.getElementById('ea-loc').value='';document.getElementById('ea-status').value='Aktif';renderGroupCheckboxes(['Semua']);openM('m-act');}
-function openEditAct(id){if(guardWrite('activities'))return;const a=(DB.get('activities')||[]).find(x=>x.id===id);if(!a)return;document.getElementById('m-act-ttl').textContent='Edit Aktiviti / Program';document.getElementById('ea-id').value=id;document.getElementById('ea-type').value=a.type;document.getElementById('ea-name').value=a.name;document.getElementById('ea-desc').value=a.desc||'';document.getElementById('ea-date').value=a.date;document.getElementById('ea-time').value=a.time||'';document.getElementById('ea-duration').value=a.duration || '0';document.getElementById('ea-loc').value=a.loc||'';document.getElementById('ea-status').value=a.status;renderGroupCheckboxes(a.targetGroups||['Semua']);openM('m-act');}
+function openAddAct(){if(guardWrite('activities'))return;document.getElementById('m-act-ttl').textContent='Tambah Aktiviti / Program';document.getElementById('ea-id').value='';document.getElementById('ea-type').value='Aktiviti';document.getElementById('ea-name').value='';document.getElementById('ea-desc').value='';document.getElementById('ea-date').value=todayStr();document.getElementById('ea-time').value='';document.getElementById('ea-duration').value='0';document.getElementById('ea-loc').value='';document.getElementById('ea-status').value='Aktif';document.getElementById('ea-target-count').value='';renderGroupCheckboxes(['Semua']);openM('m-act');}
+function openEditAct(id){if(guardWrite('activities'))return;const a=(DB.get('activities')||[]).find(x=>x.id===id);if(!a)return;document.getElementById('m-act-ttl').textContent='Edit Aktiviti / Program';document.getElementById('ea-id').value=id;document.getElementById('ea-type').value=a.type;document.getElementById('ea-name').value=a.name;document.getElementById('ea-desc').value=a.desc||'';document.getElementById('ea-date').value=a.date;document.getElementById('ea-time').value=a.time||'';document.getElementById('ea-duration').value=a.duration || '0';document.getElementById('ea-loc').value=a.loc||'';document.getElementById('ea-status').value=a.status;document.getElementById('ea-target-count').value=a.targetCount||'';renderGroupCheckboxes(a.targetGroups||['Semua']);openM('m-act');}
 
 async function saveAct(){
   if(guardWrite('activities'))return;
   const id=document.getElementById('ea-id').value,type=document.getElementById('ea-type').value,name=document.getElementById('ea-name').value.trim(),desc=document.getElementById('ea-desc').value.trim(),date=document.getElementById('ea-date').value,time=document.getElementById('ea-time').value,duration=parseInt(document.getElementById('ea-duration').value)||0,loc=document.getElementById('ea-loc').value.trim(),status=document.getElementById('ea-status').value;
+  const targetCountRaw = document.getElementById('ea-target-count').value;
+  const targetCount = targetCountRaw !== '' ? parseInt(targetCountRaw) || 0 : null; // null = auto dari kumpulan
   if(!name||!date)return toast('Sila isi nama dan tarikh','error');
   
   const acts=DB.get('activities')||[];
@@ -2916,7 +2967,7 @@ async function saveAct(){
   // Format YYYY-MM-DD dan HH:MM — Sheets tidak akan autotukar format ini
   const safeDateStr = date ? String(date).trim() : '';
   const safeTimeStr = time ? String(time).trim().slice(0,5) : '00:00';
-  const payload = { id: id||'a'+Date.now(), type, name, desc, date: safeDateStr, time: safeTimeStr, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
+  const payload = { id: id||'a'+Date.now(), type, name, desc, date: safeDateStr, time: safeTimeStr, duration, activatedAt, timerStartedAt, loc, status, targetGroups: getSelectedGroups(), targetCount, pin: oldAct ? oldAct.pin : Math.floor(100000 + Math.random()*900000).toString() };
   
   // Simpan tempatan DULU — UI serta-merta terkini
   if(id){ const i=acts.findIndex(a=>a.id===id); if(i>-1) acts[i]=payload; } else { acts.push(payload); }
@@ -3910,71 +3961,201 @@ function toast(msg,type=''){const el=document.getElementById('toast');el.textCon
   requestAnimationFrame(tick);
 })();
 
-/* DYNAMIC REAL TIME CHART CALCULATION (ISNIN-JUMAAT) */
-function getWeeklyMetrics(userMatric = null) {
+/* ══════════════════════════════════════════════════════
+   SISTEM CARTA KEHADIRAN — Harian / Mingguan / Bulanan / Tahunan
+   Peratus = Hadir Sebenar ÷ Sasaran × 100
+   Sasaran = targetCount aktiviti (jika kosong, auto kira dari kumpulan)
+   Carta hanya papar jika ada rekod kehadiran sebenar
+   ══════════════════════════════════════════════════════ */
+
+// Kira jumlah sasaran untuk satu aktiviti
+// Jika admin tetapkan targetCount → guna itu
+// Jika tidak → kira jumlah pelajar dalam kumpulan sasaran
+function getActTarget(act) {
+  if (act.targetCount !== null && act.targetCount !== undefined && act.targetCount > 0) {
+    return act.targetCount;
+  }
+  const users = DB.get('users') || [];
+  const eligible = users.filter(u => actAppliesToStudent(act, u));
+  return eligible.length || 1;
+}
+
+// Kira metrik kehadiran untuk satu tempoh masa
+// mode: 'day' | 'week' | 'month' | 'year'
+// refDate: Date objek sebagai rujukan
+// userMatric: jika null = semua pelajar (admin view), jika ada = pelajar tertentu
+// typeFilter: null = semua jenis, 'Aktiviti' = aktiviti sahaja, 'Program' = program sahaja
+function getAttendanceMetrics(mode, refDate, userMatric = null, typeFilter = null) {
+  let acts = DB.get('activities') || [];
   const atts = DB.get('attendance') || [];
-  const stats = [0, 0, 0, 0, 0];
-  const totals = [0, 0, 0, 0, 0];
-  
-  atts.forEach(a => {
-    if(userMatric && a.matric !== userMatric) return;
-    const dateObj = new Date(a.date);
-    const day = dateObj.getDay(); 
-    if (day >= 1 && day <= 5) {
-      totals[day - 1]++;
-      if (a.status === 'present') {
-        stats[day - 1]++;
-      }
+  const ref = refDate || new Date();
+
+  // Tapis mengikut jenis jika typeFilter ditetapkan
+  if (typeFilter) acts = acts.filter(a => a.type === typeFilter);
+
+  // Tentukan julat masa
+  let slots = []; // array { label, dateFilter }
+
+  if (mode === 'day') {
+    // 7 hari lepas termasuk hari ini
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(ref);
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().slice(0,10);
+      const dayNames = ['Ahd','Isn','Sel','Rab','Kha','Jum','Sab'];
+      slots.push({ label: i === 0 ? 'Hari Ini' : dayNames[d.getDay()]+' '+d.getDate(), iso });
     }
+  } else if (mode === 'week') {
+    // 8 minggu lepas termasuk minggu ini
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(ref);
+      d.setDate(d.getDate() - i * 7);
+      // Cari Isnin minggu tersebut
+      const day = d.getDay();
+      const mon = new Date(d);
+      mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const monIso = mon.toISOString().slice(0,10);
+      const sunIso = sun.toISOString().slice(0,10);
+      slots.push({ label: i === 0 ? 'Minggu Ini' : `${mon.getDate()}/${mon.getMonth()+1}`, monIso, sunIso });
+    }
+  } else if (mode === 'month') {
+    // 12 bulan lepas termasuk bulan ini
+    const monthNames = ['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogs','Sep','Okt','Nov','Dis'];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(ref.getFullYear(), ref.getMonth() - i, 1);
+      slots.push({ label: monthNames[d.getMonth()] + (i === 0 ? '' : ' ' + String(d.getFullYear()).slice(2)), year: d.getFullYear(), month: d.getMonth() });
+    }
+  } else if (mode === 'year') {
+    // 5 tahun lepas termasuk tahun ini
+    for (let i = 4; i >= 0; i--) {
+      const y = ref.getFullYear() - i;
+      slots.push({ label: String(y), year: y });
+    }
+  }
+
+  // Kira hadir dan sasaran untuk setiap slot
+  return slots.map(slot => {
+    // Tapis aktiviti dalam tempoh slot ini
+    let slotActs = [];
+    if (mode === 'day') {
+      slotActs = acts.filter(a => normalizeDateStr(a.date) === slot.iso);
+    } else if (mode === 'week') {
+      slotActs = acts.filter(a => {
+        const d = normalizeDateStr(a.date);
+        return d >= slot.monIso && d <= slot.sunIso;
+      });
+    } else if (mode === 'month') {
+      slotActs = acts.filter(a => {
+        const d = normalizeDateStr(a.date);
+        if (!d) return false;
+        const p = d.split('-');
+        return parseInt(p[0]) === slot.year && parseInt(p[1]) - 1 === slot.month;
+      });
+    } else if (mode === 'year') {
+      slotActs = acts.filter(a => {
+        const d = normalizeDateStr(a.date);
+        if (!d) return false;
+        return parseInt(d.split('-')[0]) === slot.year;
+      });
+    }
+
+    // Hanya ambil aktiviti yang ada rekod kehadiran (bukan sifar)
+    let totalHadir = 0, totalSasaran = 0, hasData = false;
+
+    slotActs.forEach(act => {
+      // Tapis rekod kehadiran untuk aktiviti ini
+      let actAtts = atts.filter(r => r.actId === act.id);
+      if (userMatric) actAtts = actAtts.filter(r => r.matric === userMatric);
+      if (!actAtts.length) return; // tiada rekod → langkau
+
+      const hadir = actAtts.filter(r => r.status === 'present').length;
+      const sasaran = userMatric ? 1 : getActTarget(act);
+
+      totalHadir += hadir;
+      totalSasaran += sasaran;
+      hasData = true;
+    });
+
+    const pct = (hasData && totalSasaran > 0) ? Math.min(100, Math.round(totalHadir / totalSasaran * 100)) : 0;
+    return { label: slot.label, hadir: totalHadir, sasaran: totalSasaran, pct, hasData };
   });
-  
-  return { stats, totals };
+}
+
+// Render carta bar universal
+function renderAttChart(containerId, metrics, accentColor = 'var(--ac)') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // Jika tiada data langsung → tunjuk mesej
+  if (!metrics.some(m => m.hasData)) {
+    container.innerHTML = '<div class="empty" style="padding:20px 0;font-size:12px;">Tiada rekod kehadiran untuk tempoh ini.</div>';
+    return;
+  }
+
+  container.innerHTML = metrics.map(m => {
+    const opacity = m.hasData ? '1' : '0.25';
+    const barColor = m.pct >= 80 ? 'linear-gradient(to top,var(--a3),#34d399)' : m.pct >= 60 ? 'linear-gradient(to top,var(--warn),#fbbf24)' : m.hasData ? 'linear-gradient(to top,var(--danger),#f87171)' : 'rgba(255,255,255,0.08)';
+    const tooltip = m.hasData ? `${m.hadir}/${m.sasaran} hadir` : 'Tiada data';
+    return `<div class="chart-bar-wrapper" style="opacity:${opacity};">
+      <div class="chart-tooltip">${tooltip}</div>
+      <span class="chart-bar-val" style="font-size:7px;">${m.hasData ? m.pct+'%' : '—'}</span>
+      <div class="chart-bar-bg">
+        <div class="chart-bar-fill" style="height:${m.pct}%;background:${barColor};"></div>
+      </div>
+      <span class="chart-bar-lbl" style="font-size:7px;">${m.label}</span>
+    </div>`;
+  }).join('');
+}
+
+// Mod aktif untuk setiap carta admin (type → mode)
+const _admChartModes = { all: 'week', Aktiviti: 'week', Program: 'week' };
+
+function setAdmChartMode(type, mode) {
+  _admChartModes[type] = mode;
+  // Kemaskini tab aktif untuk carta berkenaan
+  ['day','week','month','year'].forEach(m => {
+    const btn = document.getElementById(`adm-chart-tab-${type}-${m}`);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  renderAdminChart(type);
+}
+
+// Render satu carta admin mengikut type ('all' | 'Aktiviti' | 'Program')
+function renderAdminChart(type) {
+  const mode = _admChartModes[type] || 'week';
+  const containerId = type === 'all' ? 'adm-chart-all' : `adm-chart-${type}`;
+  const typeFilter = type === 'all' ? null : type; // null = semua jenis
+  const metrics = getAttendanceMetrics(mode, new Date(), null, typeFilter);
+  renderAttChart(containerId, metrics);
+}
+
+// Render semua tiga carta admin sekaligus
+function renderAdminWeeklyChart() {
+  renderAdminChart('all');
+  renderAdminChart('Aktiviti');
+  renderAdminChart('Program');
+}
+
+// Carta pelajar
+let _stuChartMode = 'week';
+
+function setStuChartMode(mode) {
+  _stuChartMode = mode;
+  ['day','week','month','year'].forEach(m => {
+    const btn = document.getElementById('stu-chart-tab-' + m);
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  renderStudentWeeklyChart();
 }
 
 function renderStudentWeeklyChart() {
-  const container = document.getElementById('stu-weekly-chart'); if (!container) return;
-  const days = ['ISN', 'SEL', 'RAB', 'KHA', 'JUM'];
-  const metrics = getWeeklyMetrics(CU.matric);
-  
-  let html = '';
-  days.forEach((d, i) => {
-    const presence = metrics.stats[i];
-    const total = metrics.totals[i];
-    const rate = total ? Math.round((presence / total) * 100) : 0;
-    
-    html += `<div class="chart-bar-wrapper">
-      <div class="chart-tooltip">${presence}/${total} Sesi</div>
-      <span class="chart-bar-val">${rate}%</span>
-      <div class="chart-bar-bg">
-        <div class="chart-bar-fill" style="height: ${rate}%;"></div>
-      </div>
-      <span class="chart-bar-lbl">${d}</span>
-    </div>`;
-  });
-  container.innerHTML = html;
+  const metrics = getAttendanceMetrics(_stuChartMode, new Date(), CU ? CU.matric : null, null);
+  renderAttChart('stu-weekly-chart', metrics);
 }
-
-function renderAdminWeeklyChart() {
-  const container = document.getElementById('adm-weekly-chart'); if (!container) return;
-  const days = ['ISN', 'SEL', 'RAB', 'KHA', 'JUM'];
-  const metrics = getWeeklyMetrics(null); 
-  
-  let html = '';
-  days.forEach((d, i) => {
-    const presence = metrics.stats[i];
-    const total = metrics.totals[i];
-    const rate = total ? Math.round((presence / total) * 100) : 0;
-    
-    html += `<div class="chart-bar-wrapper">
-      <div class="chart-tooltip">${presence}/${total} Hadir</div>
-      <span class="chart-bar-val">${rate}%</span>
-      <div class="chart-bar-bg">
-        <div class="chart-bar-fill" style="height: ${rate}%; background:linear-gradient(to top, var(--a2), var(--ac));"></div>
-      </div>
-      <span class="chart-bar-lbl">${d}</span>
-    </div>`;
-  });
-  container.innerHTML = html;
+// Helper untuk getWeeklyMetrics (backward compat — tidak dipakai untuk carta baharu)
+function getWeeklyMetrics(userMatric = null) {
+  return { stats: [0,0,0,0,0], totals: [0,0,0,0,0] };
 }
 
 let tempAnnImage = '';
