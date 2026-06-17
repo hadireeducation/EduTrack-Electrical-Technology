@@ -1357,7 +1357,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzlch-ih2E3SYA8o0kuPIgmmKZZ_jmj2-VLUtyPHBMqMGUZxnRPEw7SnGpNFw9_nSYI/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbxzNpdn9R-XfWJmaqs7ODBOS5etxDzuGDAlAlNUCY1hwkuWqa_iuJ_bIQqrjABb1dpV/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -2141,7 +2141,11 @@ function getAct(id){return(DB.get('activities')||[]).find(a=>a.id===id);}
 // targetGroups === ['Semua'] (atau tiada) bermaksud terbuka untuk semua pelajar.
 function actAppliesToStudent(act, student) {
   if (!act || !student) return false;
-  const tg = act.targetGroups;
+  let tg = act.targetGroups;
+  // PEMBETULAN ISU 1 (tambahan): Normalisasi targetGroups — cloud mungkin hantar sebagai string
+  if (tg && !Array.isArray(tg)) {
+    tg = String(tg).split(',').map(s => s.trim()).filter(Boolean);
+  }
   if (!tg || !tg.length || (tg.length === 1 && tg[0] === 'Semua')) return true;
   return tg.includes(student.class);
 }
@@ -2190,13 +2194,27 @@ async function submitPinCheckIn() {
     return showAlert('🔒 Bukan Kumpulan Sasaran', `Aktiviti "${targetAct.name}" tidak disasarkan untuk kumpulan anda (${CU.class}).`, '🚫');
   }
   
-  // Saringan Garis Masa Penjadualan
+  // Semakan masa sesi — pelajar tidak boleh daftar sebelum sesi bermula atau selepas tamat
   const now = Date.now();
-  const schedStart = new Date(targetAct.date + 'T' + (targetAct.time || '00:00')).getTime();
-  const baseStart = targetAct.activatedAt ? new Date(targetAct.activatedAt).getTime() : schedStart;
-  if (now < baseStart) {
+  const timerStart = getActualTimerStart(targetAct);
+  if (timerStart === null) {
+    // Masa jadual belum tiba & admin belum tekan Mula Sesi
     playToneFeedback('error');
-    return toast('⚠️ Amali ini belum bermula mengikut jadual masa.', 'error');
+    const schedMs = parseSchedMs(targetAct.date, targetAct.time);
+    const diffMs = schedMs - now;
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    let ts = hrs > 0 ? `${hrs}j ${mins}m` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    return showAlert('⏳ Sesi Belum Bermula', `Sesi ini dijadualkan bermula dalam ${ts} lagi.`, '⏳');
+  }
+  if (targetAct.duration && targetAct.duration > 0) {
+    const elapsed = now - timerStart;
+    if (elapsed >= targetAct.duration * 60 * 1000) {
+      playToneFeedback('error');
+      return showAlert('⏰ Sesi Telah Tamat', `Masa pendaftaran untuk "${targetAct.name}" telah tamat. Sila hubungi pensyarah.`, '⏰');
+    }
   }
   
   toast('Mengesahkan PIN ke cloud...', 'warn');
@@ -2262,17 +2280,30 @@ async function onScan(txt,actId){
     return showAlert('🔒 QR Ditolak — Keselamatan','QR tidak sah, diubahsuai, atau tangkapan skrin (screenshot) dikesan.'); 
   }
   
-  // Saringan Garis Masa Penjadualan
+  // Semakan masa sesi — pelajar tidak boleh daftar sebelum sesi bermula atau selepas tamat
   const act = getAct(actId);
   if (act) {
     const now = Date.now();
-    const schedStart = new Date(act.date + 'T' + (act.time || '00:00')).getTime();
-    const baseStart = act.activatedAt ? new Date(act.activatedAt).getTime() : schedStart;
-    if (now < baseStart) {
+    const timerStart = getActualTimerStart(act);
+    if (timerStart === null) {
       playToneFeedback('error');
-      return showAlert('🔒 QR Ditangguhkan', 'Sesi amali ini belum bermula mengikut jadual masa.', '⌛');
+      const schedMs = parseSchedMs(act.date, act.time);
+      const diffMs = schedMs - now;
+      const totalSecs = Math.floor(diffMs / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      let ts = hrs > 0 ? `${hrs}j ${mins}m` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      return showAlert('⏳ Sesi Belum Bermula', `Sesi ini dijadualkan bermula dalam ${ts} lagi.`, '⏳');
     }
-    // PEMBETULAN ISU 2: Pastikan pelajar yang diimbas tergolong dalam kumpulan sasaran aktiviti ini
+    if (act.duration && act.duration > 0) {
+      const elapsed = now - timerStart;
+      if (elapsed >= act.duration * 60 * 1000) {
+        playToneFeedback('error');
+        return showAlert('⏰ Sesi Telah Tamat', `Masa pendaftaran untuk "${act.name}" telah tamat.`, '⏰');
+      }
+    }
+    // Pastikan pelajar yang diimbas tergolong dalam kumpulan sasaran aktiviti ini
     const scannedUser = (DB.get('users') || []).find(u => u.matric === r.matric);
     if (scannedUser && !actAppliesToStudent(act, scannedUser)) {
       playToneFeedback('error');
@@ -2350,15 +2381,28 @@ async function onAdminScan(txt,actId){
     return showAlert('🔒 QR Ditolak', 'Sistem mengesan QR tamat tempoh/palsu.', '🚫'); 
   }
   
-  // Saringan Garis Masa Penjadualan
+  // Semakan masa sesi — tidak boleh rekod kehadiran sebelum sesi bermula atau selepas tamat
   const act = getAct(actId);
   if (act) {
     const now = Date.now();
-    const schedStart = new Date(act.date + 'T' + (act.time || '00:00')).getTime();
-    const baseStart = act.activatedAt ? new Date(act.activatedAt).getTime() : schedStart;
-    if (now < baseStart) {
+    const timerStart = getActualTimerStart(act);
+    if (timerStart === null) {
       playToneFeedback('error');
-      return showAlert('🔒 QR Ditangguhkan', 'Sesi amali ini belum bermula mengikut jadual masa.', '⌛');
+      const schedMs = parseSchedMs(act.date, act.time);
+      const diffMs = schedMs - now;
+      const totalSecs = Math.floor(diffMs / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      let ts = hrs > 0 ? `${hrs}j ${mins}m` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      return showAlert('⏳ Sesi Belum Bermula', `Sesi ini dijadualkan bermula dalam ${ts} lagi.`, '⏳');
+    }
+    if (act.duration && act.duration > 0) {
+      const elapsed = now - timerStart;
+      if (elapsed >= act.duration * 60 * 1000) {
+        playToneFeedback('error');
+        return showAlert('⏰ Sesi Telah Tamat', `Masa pendaftaran untuk "${act.name}" telah tamat.`, '⏰');
+      }
     }
   }
   
@@ -2485,7 +2529,7 @@ function handleAvatarUpload(file, callback) {
 function openChangeMyPassword() {
   document.getElementById('my-curr-pw').value = ''; document.getElementById('my-new-pw').value = ''; document.getElementById('my-new-pw2').value = ''; openM('m-change-password');
 }
-function saveMyPassword() {
+async function saveMyPassword() {
   const curr = document.getElementById('my-curr-pw').value, n1 = document.getElementById('my-new-pw').value, n2 = document.getElementById('my-new-pw2').value;
   if (!curr || !n1 || !n2) return toast('Sila isi semua ruangan', 'error');
   if (curr !== CU.pass) return toast('Kata laluan semasa salah', 'error');
@@ -2494,7 +2538,12 @@ function saveMyPassword() {
   const users = DB.get('users') || []; const i = users.findIndex(u => u.matric === CU.matric);
   if (i > -1) {
     users[i].pass = n1; DB.set('users', users); CU.pass = n1; DB.set('session_s', CU);
-    toast('✅ Kata laluan dikemaskini!', 'success'); closeM('m-change-password');
+    // PEMBETULAN ISU 2: Guna action "updatePassword" — hanya kemaskini lajur kata laluan sahaja
+    // JANGAN guna "addStudent" kerana ia akan memadam data sahsiah (skor, tags, nota)
+    toast('Menghantar kata laluan baharu ke Cloud Database...', 'warn');
+    const res = await cloudPost("updatePassword", { matric: CU.matric, pass: n1 });
+    if (res.status === "error") { toast('⚠️ Gagal simpan ke cloud: ' + (res.message||'Ralat'), 'error'); return; }
+    toast('✅ Kata laluan dikemaskini & disegerakkan ke cloud!', 'success'); closeM('m-change-password');
   }
 }
 
@@ -2731,15 +2780,12 @@ async function toggleActSt(id) {
       a.timerStartedAt = null;
     } else {
       a.status = 'Aktif';
-      // Set activatedAt baharu hanya jika tiada — elak reset masa sesi yang sudah ada
+      // Set activatedAt baharu hanya jika tiada — penanda masa aktiviti dibuka
       if (!a.activatedAt) {
         a.activatedAt = new Date().toISOString();
       }
-      const schedMs = parseSchedMs(a.date, a.time);
-      // Set timerStartedAt jika belum ada dan masa jadual sudah tiba
-      if (!a.timerStartedAt && Date.now() >= schedMs) {
-        a.timerStartedAt = a.activatedAt;
-      }
+      // timerStartedAt TIDAK ditetapkan automatik — pemasa hanya mula pada masa jadual
+      // atau apabila admin tekan "▶ Mula Sesi" secara manual
     }
     // Pastikan date & time dalam format teks selamat sebelum hantar ke cloud
     if (a.date) a.date = String(a.date).trim();
@@ -2846,15 +2892,16 @@ async function saveAct(){
 
   if (status === 'Aktif') {
     if (!oldAct) {
-      // Aktiviti BARU — set masa mula baharu
+      // Aktiviti BARU — catat masa dicipta sebagai penanda sahaja
+      // timerStartedAt TIDAK ditetapkan — pemasa hanya mula pada masa jadual
+      // atau apabila admin tekan "▶ Mula Sesi" secara manual
       activatedAt = new Date().toISOString();
-      const schedMs = parseSchedMs(date, time);
-      timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
+      timerStartedAt = null;
     } else if (oldAct.status !== 'Aktif') {
-      // Aktiviti ditukar dari Selesai/lain → Aktif — set masa mula baharu
+      // Aktiviti ditukar dari Selesai/lain → Aktif semula
+      // Reset activatedAt ke sekarang, timerStartedAt KOSONG — tunggu jadual atau manual
       activatedAt = new Date().toISOString();
-      const schedMs = parseSchedMs(date, time);
-      timerStartedAt = Date.now() >= schedMs ? activatedAt : null;
+      timerStartedAt = null;
     }
     // Jika oldAct.status === 'Aktif' — KEKALKAN activatedAt & timerStartedAt sedia ada (tiada reset)
   } else {
@@ -2920,7 +2967,13 @@ function renderReportList(filter = '') {
   const actReports = reports[_reportActId] || {};
   const q = filter.toLowerCase();
 
-  // PEMBETULAN ISU 3: Hanya papar pelajar dari kumpulan sasaran aktiviti ini
+  // PEMBETULAN ISU 1: Normalisasi targetGroups supaya sentiasa array (bukannya string dari cloud)
+  if (act && act.targetGroups && !Array.isArray(act.targetGroups)) {
+    act.targetGroups = String(act.targetGroups).split(',').map(s => s.trim()).filter(Boolean);
+    if (!act.targetGroups.length) act.targetGroups = ['Semua'];
+  }
+
+  // Hanya papar pelajar dari kumpulan sasaran aktiviti ini
   const groupFiltered = act ? users.filter(u => actAppliesToStudent(act, u)) : users;
 
   const filtered = groupFiltered.filter(u =>
@@ -4300,24 +4353,18 @@ function parseSchedMs(dateStr, timeStr) {
 }
 
 function getActualTimerStart(a) {
-  // KEUTAMAAN 1: timerStartedAt — masa admin mula secara manual (paling dipercayai)
+  // KEUTAMAAN 1: timerStartedAt — masa admin tekan "▶ Mula Sesi" secara manual
+  // Ini mengatasi semua yang lain (boleh lebih awal atau lebih lambat dari jadual)
   if (a.timerStartedAt) {
     const ts = new Date(a.timerStartedAt).getTime();
     if (!isNaN(ts)) return ts;
   }
-  // KEUTAMAAN 2: activatedAt — masa aktiviti diaktifkan
-  // PENTING: Jika activatedAt ada, JANGAN fallback ke schedMs
-  // kerana schedMs boleh berubah apabila admin edit tarikh/masa aktiviti
-  if (a.activatedAt) {
-    const ts = new Date(a.activatedAt).getTime();
-    if (!isNaN(ts)) return ts;
-  }
-  // KEUTAMAAN 3: Fallback ke masa jadual HANYA jika tiada activatedAt langsung
-  // (aktiviti Aktif tapi tiada rekod masa mula — kes lama/migrasi)
+  // KEUTAMAAN 2: Masa jadual (date + time) — pemasa mula automatik TEPAT pada waktu jadual
+  // activatedAt TIDAK digunakan sebagai masa mula — ia hanya penanda aktiviti dibuka
   const schedMs = parseSchedMs(a.date, a.time);
   const now = Date.now();
-  if (now >= schedMs) return schedMs;
-  return null; // jadual belum tiba
+  if (schedMs > 0 && now >= schedMs) return schedMs;
+  return null; // jadual belum tiba, timerStartedAt tiada — pemasa belum bermula
 }
 
 function getRemainingTimeStr(a) {
@@ -4326,7 +4373,7 @@ function getRemainingTimeStr(a) {
   const timerStart = getActualTimerStart(a);
 
   if (timerStart === null) {
-    // Jadual belum tiba
+    // Jadual belum tiba & tiada manual start
     const schedMs = parseSchedMs(a.date, a.time);
     const diffMs = schedMs - now;
     if (diffMs <= 0) return '🟢 Sedia Bermula';
