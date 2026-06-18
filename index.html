@@ -1340,7 +1340,8 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     <div style="font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t2); margin-bottom:8px;">
       Senarai Pelajar — <span id="report-act-name-lbl" style="color:var(--ac);"></span>
     </div>
-    <div id="report-stu-list" style="max-height:55vh; overflow-y:auto; padding-right:2px;"></div>
+    <div id="report-summary"></div>
+    <div id="report-stu-list" style="max-height:50vh; overflow-y:auto; padding-right:2px;"></div>
     <div style="display:flex; gap:8px; margin-top:10px;">
       <button class="btn bs" style="flex:1;" onclick="closeM('m-act-report')">Tutup</button>
       <button class="btn bg" style="flex:2;" onclick="saveAllReports()">💾 Simpan Semua Rumusan</button>
@@ -1404,7 +1405,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzmovBK8y6FyTdTAGwPZyro75Jfs-Mce7G50qBOZA7vd9WGbHKmZftSd2Kh5KHZx74v/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbzroNmpX-Z93PRSzQANd1wvfNjhSfhtdHFTdoLLkLQese2QJq7GLGcPTJso_gk1XFz1/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -1671,6 +1672,9 @@ function setConfig(key, value) {
   }
 }
 
+// Senarai ID aktiviti yang baru dipadam secara tempatan — elak muncul semula semasa sync
+const _deletedActIds = new Set();
+
 async function syncAllCloud(silent = false) {
   if (!API_URL) { gdStCloud('local'); return true; }
   gdStCloud('syncing');
@@ -1693,7 +1697,7 @@ async function syncAllCloud(silent = false) {
         class: u.Kumpulan || '',
         phone: (u.Telefon !== undefined && u.Telefon !== null) ? String(u.Telefon) : '',
         email: u.Email || '',
-        pass: (u.Katalaluan !== undefined && u.Katalaluan !== null) ? String(u.Katalaluan) : '',
+        pass: (u.Katalaluan !== undefined && u.Katalaluan !== null) ? String(u.Katalaluan).trim() : '',
         registered: u.TarikhDaftar || new Date().toISOString(),
         avatar: u.Avatar || '',
         behavior: {
@@ -1786,7 +1790,7 @@ async function syncAllCloud(silent = false) {
         }
 
         return cloudAct;
-      }).filter(a => a.id && !a.id.startsWith('report_'));
+      }).filter(a => a.id && !a.id.startsWith('report_') && !_deletedActIds.has(a.id));
 
       // ── LANGKAH 4: Bandingkan aktiviti SEBELUM clearCache ──
       // (prevActsJSON diambil dari snapshot yang sudah ada — bukan selepas clearCache)
@@ -1915,13 +1919,15 @@ function guardWrite(area='general', showToast=true) {
 function authTab(t){document.getElementById('af-login').classList.toggle('hidden',t!=='login');document.getElementById('af-admin').classList.toggle('hidden',t!=='admin');document.querySelectorAll('#auth-tabs .tab').forEach((el,i)=>el.classList.toggle('active',['login','admin'][i]===t));}
 
 async function doLogin(){
-  const mat=document.getElementById('l-mat').value.trim().toUpperCase(),pw=document.getElementById('l-pw').value;
+  const mat=document.getElementById('l-mat').value.trim().toUpperCase(),pw=document.getElementById('l-pw').value.trim();
   if(!mat||!pw)return toast('Sila isi semua maklumat','error');
   
   toast('Sedang mengesahkan...', 'warn');
   await syncAllCloud(); 
   
-  const u=(DB.get('users')||[]).find(u=>u.matric===mat&&u.pass===pw);
+  // Bandingkan kata laluan sebagai string — trim kedua-dua pihak
+  // String() pastikan nombor seperti 123456 dari Sheets tidak menjadi isu
+  const u=(DB.get('users')||[]).find(u=>u.matric===mat && String(u.pass).trim()===String(pw).trim());
   if(!u) {
     playToneFeedback('error');
     return toast('No. matrik atau kata laluan salah','error');
@@ -1954,6 +1960,8 @@ function logVisit(u, roleLabel) {
     visits.push(entry);
     DB.set('visitor_log', visits);
     if (API_URL) cloudPost('addVisitor', entry).catch(()=>{});
+    // Kemaskini statistik pelawat serta-merta tanpa tunggu sync
+    if (typeof renderVisitorStats === 'function') renderVisitorStats();
   } catch(e) {}
 }
 
@@ -1983,6 +1991,8 @@ function logVisitOut(matric, name, roleLabel) {
     visits.push(exitEntry);
     DB.set('visitor_log', visits);
     if (API_URL) cloudPost('addVisitor', exitEntry).catch(()=>{});
+    // Kemaskini statistik pelawat serta-merta tanpa tunggu sync
+    if (typeof renderVisitorStats === 'function') renderVisitorStats();
   } catch(e) {}
 }
 
@@ -2493,7 +2503,7 @@ function renderHistory(){
   let atts=myAtts(); if(cur)atts=atts.filter(a=>a.actId===cur); atts=[...atts].reverse();
   document.getElementById('hist-list').innerHTML=atts.length?atts.map(a=>{const ac=getAct(a.actId);return liH(a.status==='present'?'dp':'da',ac?ac.name:a.actId,`${ac?'['+ac.type+'] ':''} ${fmtDate(a.date)}`, a.status==='present'?'bpres':'babs',a.status==='present'?'Hadir':'Tidak Hadir');}).join(''):'<div class="empty">Tiada rekod kehadiran</div>';
   const all=myAtts(),ids=[...new Set(all.map(a=>a.actId))];
-  document.getElementById('hist-prog').innerHTML=ids.length?ids.map(id=>{const ac=getAct(id),sa=all.filter(a=>a.actId===id),p=sa.filter(a=>a.status==='present').length,pct=sa.length?Math.round(p/sa.length*100):0,fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;">${ac?ac.name:id}</span><span>${p}/${sa.length} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada data</div>';
+  document.getElementById('hist-prog').innerHTML=ids.length?ids.map(id=>{const ac=getAct(id),sa=all.filter(a=>a.actId===id),p=sa.filter(a=>a.status==='present').length,{sasaran,pct}=ac?getActPct(ac,p):{sasaran:sa.length,pct:sa.length?Math.round(p/sa.length*100):0},fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;">${ac?ac.name:id}</span><span>${p}/${sasaran} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada data</div>';
   
   // Paparkan ulasan pendidik per aktiviti (neon box)
   const reports = DB.get('act_reports') || {};
@@ -2579,20 +2589,28 @@ function openChangeMyPassword() {
   document.getElementById('my-curr-pw').value = ''; document.getElementById('my-new-pw').value = ''; document.getElementById('my-new-pw2').value = ''; openM('m-change-password');
 }
 async function saveMyPassword() {
-  const curr = document.getElementById('my-curr-pw').value, n1 = document.getElementById('my-new-pw').value, n2 = document.getElementById('my-new-pw2').value;
+  const curr = document.getElementById('my-curr-pw').value.trim();
+  const n1   = document.getElementById('my-new-pw').value;
+  const n2   = document.getElementById('my-new-pw2').value;
   if (!curr || !n1 || !n2) return toast('Sila isi semua ruangan', 'error');
-  if (curr !== CU.pass) return toast('Kata laluan semasa salah', 'error');
+  // Bandingkan kata laluan semasa dengan trim & String() — konsisten dengan doLogin
+  if (String(curr).trim() !== String(CU.pass).trim()) return toast('Kata laluan semasa salah', 'error');
   if (n1.length < 6) return toast('Kata laluan baharu min 6 aksara', 'error');
   if (n1 !== n2) return toast('Sahkan kata laluan tidak sepadan', 'error');
-  const users = DB.get('users') || []; const i = users.findIndex(u => u.matric === CU.matric);
+  // Amaran jika kata laluan baharu ada ruang di hadapan/belakang
+  if (n1 !== n1.trim()) return toast('⚠️ Kata laluan tidak boleh bermula atau berakhir dengan ruang', 'error');
+  // Amaran jika kata laluan bermula dengan nombor 0 (akan dipotong oleh Sheets jika tiada perlindungan)
+  if (/^0\d+$/.test(n1)) return toast('⚠️ Kata laluan tidak disyorkan bermula dengan angka 0 — gunakan huruf atau simbol sebagai awalan', 'warn');
+
+  const users = DB.get('users') || [];
+  const i = users.findIndex(u => u.matric === CU.matric);
   if (i > -1) {
     users[i].pass = n1; DB.set('users', users); CU.pass = n1; DB.set('session_s', CU);
-    // PEMBETULAN ISU 2: Guna action "updatePassword" — hanya kemaskini lajur kata laluan sahaja
-    // JANGAN guna "addStudent" kerana ia akan memadam data sahsiah (skor, tags, nota)
     toast('Menghantar kata laluan baharu ke Cloud Database...', 'warn');
     const res = await cloudPost("updatePassword", { matric: CU.matric, pass: n1 });
     if (res.status === "error") { toast('⚠️ Gagal simpan ke cloud: ' + (res.message||'Ralat'), 'error'); return; }
-    toast('✅ Kata laluan dikemaskini & disegerakkan ke cloud!', 'success'); closeM('m-change-password');
+    toast('✅ Kata laluan dikemaskini & disegerakkan ke cloud!', 'success');
+    closeM('m-change-password');
   }
 }
 
@@ -2627,7 +2645,7 @@ function refreshAdmDash(){
   const ranked=[...users].map(u=>{const ua=atts.filter(a=>a.matric===u.matric),pct=ua.length?Math.round(ua.filter(a=>a.status==='present').length/ua.length*100):0;return{...u,pct};}).sort((a,b)=>b.pct-a.pct).slice(0,5);
   document.getElementById('ad-top-stu').innerHTML=ranked.length?ranked.map((u,i)=>`<div class="li"><div style="width:20px;font-size:13px;font-weight:800;color:var(--ac);">${i+1}</div><div class="linfo"><div class="ltitle">${u.name}</div><div class="lsub">${u.matric}</div></div><span style="font-size:13px;font-weight:800;">${u.pct}%</span></div>`).join(''):'<div class="empty">Tiada data pelajar</div>';
   
-  document.getElementById('ad-att-prog').innerHTML=acts.length?[...acts].reverse().slice(0,5).map(a=>{const ua=atts.filter(x=>x.actId===a.id),p=ua.filter(x=>x.status==='present').length,pct=ua.length?Math.round(p/ua.length*100):0,fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;font-size:11px;">${a.name}</span><span>${p}/${ua.length} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada aktiviti</div>';
+  document.getElementById('ad-att-prog').innerHTML=acts.length?[...acts].reverse().slice(0,5).map(a=>{const ua=atts.filter(x=>x.actId===a.id),p=ua.filter(x=>x.status==='present').length,{sasaran,pct}=getActPct(a,p),fc=pct>=80?'pfg':pct>=60?'pfw':'pfd';return`<div class="pwrap"><div class="plbl"><span style="font-weight:700;font-size:11px;">${a.name}</span><span>${p}/${sasaran} · ${pct}%</span></div><div class="pbar"><div class="pfill ${fc}" style="width:${pct}%"></div></div></div>`;}).join(''):'<div class="empty">Tiada aktiviti</div>';
   renderAdminWeeklyChart(); renderAnnouncements(); renderVisitorStats(); renderDemoAccCard();
 }
 
@@ -2786,7 +2804,8 @@ function renderActList(){
       }
     }
 
-    const canEdit = !PEMANTAU || IS_SUB_ADMIN;
+    // Hanya admin utama dan sub-admin boleh edit/padam — pemantau tidak boleh
+    const canEdit = IS_MAIN_ADMIN || IS_SUB_ADMIN;
     const editBtn = canEdit ? `<button class="btn bs btn-sm" onclick="openEditAct('${a.id}')">✏️ Edit</button>` : '';
     const delBtn = canEdit ? `<button class="btn bd btn-sm" onclick="delAct('${a.id}')">🗑</button>` : '';
     const pinBtn = a.status==='Aktif' ? `<button class="btn bs btn-sm" style="color:var(--ac); border-color:rgba(0,240,255,0.3);" onclick="generateSessionPin('${a.id}')">🔑 PIN</button>` : '';
@@ -2984,14 +3003,21 @@ function delAct(id){
   if(guardWrite('activities'))return;
   showConfirm('Padam Aktiviti', 'Pasti padam aktiviti ini? Rekod kehadiran berkaitan juga akan dipadam.', async (c)=>{
     if(!c) return;
+    // Tandakan ID ini sebagai dipadam — elak sync tarik balik dari cloud
+    _deletedActIds.add(id);
+    // Padam lokal dahulu supaya UI segera dikemaskini
+    DB.set('activities',(DB.get('activities')||[]).filter(a=>a.id!==id));
+    renderActList(); refreshAdmDash();
+    // Kemudian hantar ke cloud
     toast('Memadamkan dari cloud...', 'warn');
     const res = await cloudPost("deleteActivity",{id}).catch(()=>({status:'error',message:'Gagal sambung ke cloud.'}));
     if(res && res.status === 'error' && API_URL) {
-      return toast('⚠️ Gagal padam dari cloud: ' + (res.message||'Ralat tidak diketahui') + '. Cuba semak sambungan & cuba lagi.', 'error');
+      // Jika cloud gagal, kekalkan dalam _deletedActIds supaya sync tidak tarik balik
+      return toast('⚠️ Dipadam lokal tetapi gagal padam dari cloud: ' + (res.message||'Ralat tidak diketahui') + '. Cuba segerak semula.', 'error');
     }
-    DB.set('activities',(DB.get('activities')||[]).filter(a=>a.id!==id));
-    renderActList(); refreshAdmDash();
     toast('🗑 Aktiviti berjaya dipadam.', 'success');
+    // Sync semula SELEPAS cloud confirm padam — bukan sebelum
+    if(API_URL) setTimeout(()=>{ _deletedActIds.delete(id); syncAllCloud(true); }, 2000);
   });
 }
 
@@ -3018,18 +3044,38 @@ function renderReportList(filter = '') {
   const actReports = reports[_reportActId] || {};
   const q = filter.toLowerCase();
 
-  // PEMBETULAN ISU 1: Normalisasi targetGroups supaya sentiasa array (bukannya string dari cloud)
+  // Normalisasi targetGroups supaya sentiasa array
   if (act && act.targetGroups && !Array.isArray(act.targetGroups)) {
     act.targetGroups = String(act.targetGroups).split(',').map(s => s.trim()).filter(Boolean);
     if (!act.targetGroups.length) act.targetGroups = ['Semua'];
   }
 
-  // Hanya papar pelajar dari kumpulan sasaran aktiviti ini
+  // Hanya pelajar dari kumpulan sasaran aktiviti ini
   const groupFiltered = act ? users.filter(u => actAppliesToStudent(act, u)) : users;
-
   const filtered = groupFiltered.filter(u =>
     !q || u.name.toLowerCase().includes(q) || u.matric.toLowerCase().includes(q)
   );
+
+  // Kira ringkasan sasaran vs hadir sebenar
+  const hadirCount = groupFiltered.filter(u =>
+    atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present')
+  ).length;
+  const { sasaran, pct } = act ? getActPct(act, hadirCount) : { sasaran: groupFiltered.length, pct: 0 };
+  const pctCol = pct >= 80 ? 'var(--a3)' : pct >= 60 ? 'var(--warn)' : 'var(--danger)';
+
+  // Tunjuk ringkasan di atas senarai
+  const summaryEl = document.getElementById('report-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--bdr);border-radius:10px;margin-bottom:10px;">
+        <div style="font-size:12px;color:var(--t2);">
+          Hadir: <b style="color:var(--a3);">${hadirCount}</b> &nbsp;|&nbsp;
+          Sasaran: <b style="color:var(--ac);">${sasaran}</b> &nbsp;|&nbsp;
+          Tidak Hadir: <b style="color:var(--danger);">${sasaran - hadirCount < 0 ? 0 : sasaran - hadirCount}</b>
+        </div>
+        <div style="font-size:16px;font-weight:800;color:${pctCol};">${pct}%</div>
+      </div>`;
+  }
 
   if (!filtered.length) {
     document.getElementById('report-stu-list').innerHTML = '<div class="empty">Tiada pelajar ditemui.</div>';
@@ -3980,6 +4026,15 @@ function getActTarget(act) {
   return eligible.length || 1;
 }
 
+// Kira peratus kehadiran untuk satu aktiviti berdasarkan sasaran
+// hadir = bilangan rekod 'present', act = objek aktiviti
+// Pulang: { hadir, sasaran, pct, label }
+function getActPct(act, hadirCount) {
+  const sasaran = getActTarget(act);
+  const pct = Math.min(100, Math.round(hadirCount / sasaran * 100));
+  return { hadir: hadirCount, sasaran, pct };
+}
+
 // Kira metrik kehadiran untuk satu tempoh masa
 // mode: 'day' | 'week' | 'month' | 'year'
 // refDate: Date objek sebagai rujukan
@@ -4681,7 +4736,7 @@ let _autoSyncInterval = setInterval(async () => {
           name: u.Nama||'', matric: (u.Matrik!==undefined&&u.Matrik!==null)?String(u.Matrik).trim().toUpperCase():'',
           progtype: u.Program||'', semester: u.Semester||'', class: u.Kumpulan||'',
           phone: (u.Telefon!==undefined&&u.Telefon!==null)?String(u.Telefon):'', email: u.Email||'',
-          pass: (u.Katalaluan!==undefined&&u.Katalaluan!==null)?String(u.Katalaluan):'',
+          pass: (u.Katalaluan!==undefined&&u.Katalaluan!==null)?String(u.Katalaluan).trim():'',
           registered: u.TarikhDaftar||new Date().toISOString(), avatar: u.Avatar||'',
           behavior: { score:(u.SkorSahsiah!==''&&u.SkorSahsiah!==undefined&&u.SkorSahsiah!==null)?Number(u.SkorSahsiah):100, tags:u.Tags?String(u.Tags).split(',').map(s=>s.trim()).filter(Boolean):[], note:u.Nota||'' }
         })).filter(u => u.matric);
