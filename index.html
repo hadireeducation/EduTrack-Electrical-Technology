@@ -11280,6 +11280,7 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       <button class="tab atab" onclick="aTab('scan')">📷 Imbas QR</button>
       <button class="tab atab" onclick="aTab('stu')">👥 Pelajar</button>
       <button class="tab atab" onclick="aTab('act')">🗂 Aktiviti</button>
+      <button class="tab atab" onclick="aTab('laporan')">⚠️ Laporan</button>
       <button class="tab atab main-admin-only hidden" onclick="aTab('usr')">🔑 Pengguna</button>
       <button class="tab atab pemantau-hidden" onclick="aTab('set')">⚙️ Tetapan</button>
     </div>
@@ -11506,6 +11507,45 @@ body.mode-pemantau .pemantau-only { display: block !important; }
   </div>
 
   <!-- SETTINGS TAB -->
+  <!-- ══ MODUL PENGURUSAN LAPORAN SALAHLAKU ══ -->
+  <div id="at-laporan" class="screen">
+    <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 4px;">
+      <div>
+        <div style="font-size:12px;color:var(--t2);margin-bottom:2px;">Pengurusan</div>
+        <div style="font-size:19px;font-weight:800;color:var(--text);">⚠️ Laporan Salahlaku</div>
+      </div>
+    </div>
+
+    <!-- Statistik ringkas -->
+    <div class="row2" style="margin-bottom:14px;">
+      <div class="scard"><div class="snum cc" id="dp-stat-total">0</div><div class="slbl">Jumlah Laporan</div></div>
+      <div class="scard"><div class="snum" style="color:var(--warn);" id="dp-stat-siasatan">0</div><div class="slbl">Dalam Siasatan</div></div>
+      <div class="scard"><div class="snum" style="color:var(--ac);" id="dp-stat-tindakan">0</div><div class="slbl">Sedang Tindakan</div></div>
+      <div class="scard"><div class="snum cg" id="dp-stat-selesai">0</div><div class="slbl">Selesai</div></div>
+    </div>
+
+    <!-- Penapis & carian -->
+    <div class="card" style="margin-bottom:12px;padding:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input type="text" class="fi" id="dp-search" placeholder="🔍 Cari nama / matrik / isu..." style="flex:1;min-width:160px;padding:8px 12px;" oninput="renderLaporanModule()">
+        <select class="fi" id="dp-filter-status" style="width:auto;padding:8px 10px;" onchange="renderLaporanModule()">
+          <option value="">Semua Status</option>
+          <option value="Dalam Siasatan">Dalam Siasatan</option>
+          <option value="Sedang Diambil Tindakan">Sedang Diambil Tindakan</option>
+          <option value="Selesai">Selesai</option>
+        </select>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bd btn-sm" onclick="exportDisciplineExcel()" title="Export Excel">📊</button>
+          <button class="btn bd btn-sm" onclick="exportDisciplinePDF()" title="Export PDF">📄</button>
+          <button class="btn bd btn-sm" onclick="exportDisciplineWord()" title="Export Word">📝</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Senarai laporan -->
+    <div id="dp-list-container"></div>
+  </div>
+
   <div id="at-set" class="screen">
     
     <!-- 🎨 SYSTEM THEME CUSTOMIZATION CARD -->
@@ -11853,6 +11893,53 @@ body.mode-pemantau .pemantau-only { display: block !important; }
   </div>
 </div>
 
+<!-- MODAL KEMASKINI LAPORAN DISIPLIN -->
+<div class="mwrap" id="m-dp-edit">
+  <div class="modal">
+    <div class="mhdr"><span id="m-dp-edit-ttl">✏️ Kemaskini Laporan</span><button class="mclose" onclick="closeM('m-dp-edit')">✕</button></div>
+    <input type="hidden" id="dp-edit-id">
+
+    <!-- Maklumat asal (baca sahaja) -->
+    <div id="dp-edit-info" class="notice ni" style="font-size:12px;line-height:1.7;margin-bottom:12px;"></div>
+
+    <!-- Status laporan -->
+    <div class="fg">
+      <label class="fl">Status Laporan</label>
+      <select class="fi" id="dp-edit-status">
+        <option value="Dalam Siasatan">🔍 Dalam Siasatan</option>
+        <option value="Sedang Diambil Tindakan">⚡ Sedang Diambil Tindakan</option>
+        <option value="Selesai">✅ Selesai</option>
+      </select>
+    </div>
+
+    <!-- Cadangan tindakan -->
+    <div class="fg">
+      <label class="fl">Cadangan / Nota Tindakan</label>
+      <textarea class="fta" id="dp-edit-cadangan" rows="2" placeholder="Kemaskini cadangan tindakan susulan..."></textarea>
+    </div>
+
+    <!-- Lampiran -->
+    <div class="fg">
+      <label class="fl">Lampiran (Gambar/Video)</label>
+      <input type="file" id="dp-edit-file" accept="image/*,video/*" onchange="previewDpFile(this)" style="display:none;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn bs btn-sm" onclick="document.getElementById('dp-edit-file').click()">📎 Pilih Fail</button>
+        <span id="dp-edit-filename" style="font-size:11px;color:var(--t2);">Tiada fail dipilih</span>
+      </div>
+      <div id="dp-edit-preview" style="margin-top:8px;"></div>
+      <!-- Pautan lampiran sedia ada -->
+      <div id="dp-edit-existing-link" style="margin-top:6px;font-size:11px;"></div>
+    </div>
+
+    <div id="dp-edit-upload-prog" style="display:none;" class="notice nw" style="font-size:11px;">⏳ Memuat naik ke Google Drive...</div>
+
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn bs" style="flex:1;" onclick="closeM('m-dp-edit')">Batal</button>
+      <button class="btn bd" style="flex:2;" onclick="saveDisciplineEdit()">💾 Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL LAPORAN DISIPLIN — Rekod Salahlaku -->
 <div class="mwrap" id="m-disiplin">
   <div class="modal">
@@ -11874,6 +11961,24 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       <label class="fl">Cadangan Tindakan Susulan</label>
       <textarea class="fta" id="dp-cadangan" rows="2" placeholder="Contoh: Surat amaran, sesi kaunseling, maklum waris..."></textarea>
     </div>
+    <div class="fg">
+      <label class="fl">Status Laporan</label>
+      <select class="fi" id="dp-status-laporan">
+        <option value="Dalam Siasatan">🔍 Dalam Siasatan</option>
+        <option value="Sedang Diambil Tindakan">⚡ Sedang Diambil Tindakan</option>
+        <option value="Selesai">✅ Selesai</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">Lampiran Gambar / Video (pilihan)</label>
+      <input type="file" id="dp-file" accept="image/*,video/*" onchange="previewDpNewFile(this)" style="display:none;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn bs btn-sm" onclick="document.getElementById('dp-file').click()">📎 Pilih Fail</button>
+        <span id="dp-filename" style="font-size:11px;color:var(--t2);">Tiada fail dipilih</span>
+      </div>
+      <div id="dp-preview" style="margin-top:8px;"></div>
+    </div>
+    <div id="dp-upload-prog" style="display:none;" class="notice nw">⏳ Memuat naik lampiran ke Google Drive...</div>
     <div class="notice nw" style="font-size:11px;margin-bottom:10px;">⚠️ Notifikasi akan dihantar ke akaun pelajar. Pelajar perlu mengesahkan penerimaan laporan ini.</div>
     <div style="display:flex;gap:8px;">
       <button class="btn bs" style="flex:1;" onclick="closeM('m-disiplin')">Batal</button>
@@ -11916,14 +12021,29 @@ body.mode-pemantau .pemantau-only { display: block !important; }
     <div class="notice nc" style="font-size:11px; margin-bottom:10px;">
       ✏️ <strong>Admin & Pemantau</strong> boleh menulis rumusan, ulasan atau makluman bagi setiap pelajar. Ulasan disimpan dan dipaparkan pada Dashboard Rekod Pelajar secara real-time.
     </div>
-    <div class="fg">
-      <input type="text" class="fi" id="report-stu-srch" placeholder="🔍 Cari nama / matrik..." oninput="filterReportList()" style="margin-bottom:8px;">
+
+    <!-- Bar carian + penapis kumpulan -->
+    <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+      <input type="text" class="fi" id="report-stu-srch" placeholder="🔍 Cari nama / matrik..." oninput="filterReportList()" style="flex:1;min-width:120px;">
+      <select class="fi" id="report-grp-filter" onchange="filterReportList()" style="width:auto;padding:8px 10px;flex:1;min-width:120px;">
+        <option value="">Semua Kumpulan</option>
+      </select>
     </div>
+
+    <!-- Bar sorting + eksport -->
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn bs btn-sm" id="report-sort-btn" onclick="toggleReportSort()" style="font-size:11px;">⬇ Hadir Dulu</button>
+      <button class="btn bs btn-sm" onclick="toggleReportView()" id="report-view-btn" style="font-size:11px;">👁 Semua</button>
+      <div style="flex:1;"></div>
+      <button class="btn bd btn-sm" onclick="printActivityReport()" style="font-size:11px;" title="Cetak / PDF">🖨 Cetak</button>
+      <button class="btn bd btn-sm" onclick="exportActivityReportExcel()" style="font-size:11px;" title="Excel">📊 Excel</button>
+    </div>
+
     <div style="font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--t2); margin-bottom:8px;">
       Senarai Pelajar — <span id="report-act-name-lbl" style="color:var(--ac);"></span>
     </div>
     <div id="report-summary"></div>
-    <div id="report-stu-list" style="max-height:50vh; overflow-y:auto; padding-right:2px;"></div>
+    <div id="report-stu-list" style="max-height:48vh; overflow-y:auto; padding-right:2px;"></div>
     <div style="display:flex; gap:8px; margin-top:10px;">
       <button class="btn bs" style="flex:1;" onclick="closeM('m-act-report')">Tutup</button>
       <button class="btn bg" style="flex:2;" onclick="saveAllReports()">💾 Simpan Semua Rumusan</button>
@@ -11987,7 +12107,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbymAoKMK33-1tfmAYSqEjDoCskx1ty7vMTZvb2BSORdwSnDRweAMUwvJQwn7bljaXvF/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbwSHxCvZ2L8j1ylc600UZTpWEemMdcujE4rINHuI3effiWQ0W_TsVGs3-CCMrzfOIzh/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -12409,8 +12529,10 @@ async function syncAllCloud(silent = false) {
           id: dp.ID||'', matric: dp.Matrik||'', nama: dp.Nama||'',
           tarikh: dp.Tarikh||'', masa: dp.Masa||'',
           isu: dp.Isu||'', cadangan: dp.CadanganTindakan||'',
-          direkodOleh: dp.DirekodOleh||'', akui: dp.Akui||'Belum',
-          tarikhAkui: dp.TarikhAkui||''
+          direkodOleh: dp.DirekodOleh||'',
+          statusLaporan: dp.Status||'Dalam Siasatan',
+          lampiran: dp.Lampiran||'',
+          akui: dp.Akui||'Belum', tarikhAkui: dp.TarikhAkui||''
         }));
         DB.set('discipline_reports', mappedDiscipline);
       }
@@ -12554,13 +12676,10 @@ function logVisit(u, roleLabel) {
     if (!activityLabel) {
       const acts = DB.get('activities') || [];
       const activeAct = acts.find(a => a.status === 'Aktif');
-      activityLabel = activeAct ? `📚 ${activeAct.name}` : '— Tiada Aktiviti Aktif';
+      activityLabel = activeAct ? `📚 ${activeAct.name}` : '— Log Masuk Sistem';
     }
     const now = new Date();
-    // Simpan masa dalam format ISO dengan offset tempatan supaya perbandingan tarikh
-    // menggunakan waktu Malaysia (UTC+8), bukan UTC — elak rekod pagi hari Malaysia
-    // (12am-8am) tersalah anggap sebagai rekod hari semalam
-    const timeISO = now.toISOString(); // Tetap simpan ISO untuk keserasian data lama
+    const timeISO = now.toISOString();
     const entry = {
       matric: u.matric,
       name: u.name,
@@ -12571,10 +12690,11 @@ function logVisit(u, roleLabel) {
     };
     const visits = DB.get('visitor_log') || [];
     visits.push(entry);
-    DB.set('visitor_log', visits);
+    DB.set('visitor_log', visits); // Simpan dulu ke DB
     if (API_URL) cloudPost('addVisitor', entry).catch(()=>{});
-    // Kemaskini statistik pelawat serta-merta tanpa tunggu sync
+    // Kemaskini statistik SELEPAS DB dikemaskini — bukan sebelum
     if (typeof renderVisitorStats === 'function') renderVisitorStats();
+    if (typeof refreshAdmDash === 'function' && (ADMIN || PEMANTAU)) refreshAdmDash();
   } catch(e) {}
 }
 
@@ -12597,11 +12717,11 @@ function logVisitOut(matric, name, roleLabel) {
     }
     DB.set('visitor_log', visits);
     if (API_URL) {
-      // Hantar kemaskini ke cloud — guna ID rekod (matric+masa masuk) supaya GAS kemaskini baris sedia ada
       cloudPost('addVisitor', { matric, name, time: timeOutISO, timeOut: timeOutISO, jenis: 'Selesai', updateOnly: true }).catch(()=>{});
     }
-    // Kemaskini statistik pelawat serta-merta tanpa tunggu sync
+    // Kemaskini statistik SELEPAS DB dikemaskini
     if (typeof renderVisitorStats === 'function') renderVisitorStats();
+    if (typeof refreshAdmDash === 'function' && (ADMIN || PEMANTAU)) refreshAdmDash();
   } catch(e) {}
 }
 
@@ -13416,13 +13536,13 @@ async function saveMyPassword() {
 function aTab(t){
   if(t==='set' && PEMANTAU && !IS_SUB_ADMIN){ toast('⚠️ Pentadbiran Sekat: Pemantau tidak boleh ubah tetapan.','warn'); return; }
   if(t==='usr' && !IS_MAIN_ADMIN){ toast('⚠️ Hanya Admin Utama boleh urus pengguna.','warn'); return; }
-  ['dash','scan','stu','act','usr','set'].forEach((x,i)=>{
+  ['dash','scan','stu','act','laporan','usr','set'].forEach((x,i)=>{
     const screenEl = document.getElementById('at-'+x); if(screenEl) screenEl.classList.toggle('active',x===t);
     const tabBtn = document.querySelectorAll('#adm-tabs .tab')[i]; if(tabBtn) tabBtn.classList.toggle('active',x===t);
   });
   if(t==='dash') refreshAdmDash(); if(t==='scan') { populateAdminScanSel(); updateAdminOnlineSt(); }
   if(t==='stu') renderStuList(); if(t==='act') renderActList(); if(t==='set') renderSettings();
-  if(t==='usr') renderUsrMgmt();
+  if(t==='usr') renderUsrMgmt(); if(t==='laporan') renderLaporanModule();
   if(t!=='scan') stopAdminScanner();
 }
 
@@ -13569,21 +13689,27 @@ function renderVisitorStats() {
   listEl.innerHTML = recent.length ? recent.map(v => {
     const d = new Date(v.time);
     const dateStr = d.toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric'});
+    // Guna format yang SAMA untuk masa masuk dan masa keluar (waktu tempatan, bukan UTC)
     const timeStr = d.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
-    // Masa keluar
+    // Masa keluar — format sama seperti masa masuk
     let timeOutStr = '—';
     if (v.timeOut && v.timeOut !== '') {
       const dOut = new Date(v.timeOut);
-      timeOutStr = dOut.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
+      // Pastikan objek Date sah sebelum format
+      if (!isNaN(dOut.getTime())) {
+        timeOutStr = dOut.toLocaleTimeString('ms-MY', {hour:'2-digit',minute:'2-digit'});
+      }
     }
-    // Warna & ikon ikut jenis — "Masuk" = sesi aktif (hijau), "Selesai" = sesi lengkap (biru)
+    // Warna & ikon ikut jenis
     const jenis = v.jenis || 'Masuk';
     const isSelesai = jenis === 'Selesai';
     const dotColor = isSelesai ? 'var(--ac)' : 'var(--a3)';
     const icon = isSelesai ? '✅' : '🟢';
     const statusLabel = isSelesai ? 'Selesai' : 'Sedang Hadir';
     const timeOutInfo = ` · Keluar: <span style="color:${v.timeOut ? 'var(--a3)' : 'var(--t2)'}">${timeOutStr}</span>`;
-    return `<div class="li"><div class="ldot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></div><div class="linfo"><div class="ltitle">${icon} ${v.name} <span style="font-size:10px;font-weight:600;color:var(--t2);">(${statusLabel})</span></div><div class="lsub">${v.matric} · ${dateStr} · Masuk: ${timeStr}${timeOutInfo} · 📌 ${v.activity}</div></div></div>`;
+    // Semak jika v.activity mengandungi ISO string (data lama yang tersalah simpan) — papar mesej generik
+    const actLabel = v.activity && /^\d{4}-\d{2}-\d{2}T/.test(v.activity) ? '— Log Masuk Sistem' : (v.activity || '—');
+    return `<div class="li"><div class="ldot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></div><div class="linfo"><div class="ltitle">${icon} ${v.name} <span style="font-size:10px;font-weight:600;color:var(--t2);">(${statusLabel})</span></div><div class="lsub">${v.matric} · ${dateStr} · Masuk: ${timeStr}${timeOutInfo} · 📌 ${actLabel}</div></div></div>`;
   }).join('') : '<div class="empty">Tiada rekod log masuk/keluar lagi.</div>';
 }
 
@@ -13843,14 +13969,33 @@ function delAct(id){
 
 /* ══ MODUL RUMUSAN / LAPORAN / ULASAN AKTIVITI ══ */
 let _reportActId = null;
+let _reportSortMode = 'hadir'; // 'hadir' | 'tidak' | 'nama'
+let _reportViewMode = 'semua'; // 'semua' | 'hadir' | 'tidak'
 
 function openActReport(actId) {
   const act = (DB.get('activities') || []).find(a => a.id === actId);
   if (!act) return;
   _reportActId = actId;
+  _reportSortMode = 'hadir';
+  _reportViewMode = 'semua';
   document.getElementById('m-act-report-ttl').textContent = `📝 Rumusan — ${act.name}`;
   document.getElementById('report-act-name-lbl').textContent = act.name;
   document.getElementById('report-stu-srch').value = '';
+
+  // Isi dropdown kumpulan berdasarkan pelajar dalam aktiviti ini
+  const users = DB.get('users') || [];
+  const eligible = users.filter(u => actAppliesToStudent(act, u));
+  const groups = [...new Set(eligible.map(u => u.class).filter(Boolean))].sort();
+  const sel = document.getElementById('report-grp-filter');
+  sel.innerHTML = '<option value="">Semua Kumpulan</option>' +
+    groups.map(g => `<option value="${g}">${g}</option>`).join('');
+
+  // Reset label butang
+  const sortBtn = document.getElementById('report-sort-btn');
+  if (sortBtn) sortBtn.textContent = '⬇ Hadir Dulu';
+  const viewBtn = document.getElementById('report-view-btn');
+  if (viewBtn) viewBtn.textContent = '👁 Semua';
+
   renderReportList();
   openM('m-act-report');
 }
@@ -13862,61 +14007,94 @@ function renderReportList(filter = '') {
   const atts = DB.get('attendance') || [];
   const reports = DB.get('act_reports') || {};
   const actReports = reports[_reportActId] || {};
-  const q = filter.toLowerCase();
+  const q = (filter || document.getElementById('report-stu-srch')?.value || '').toLowerCase();
+  const grp = document.getElementById('report-grp-filter')?.value || '';
 
-  // Normalisasi targetGroups supaya sentiasa array
+  // Normalisasi targetGroups
   if (act && act.targetGroups && !Array.isArray(act.targetGroups)) {
     act.targetGroups = String(act.targetGroups).split(',').map(s => s.trim()).filter(Boolean);
     if (!act.targetGroups.length) act.targetGroups = ['Semua'];
   }
 
-  // Hanya pelajar dari kumpulan sasaran aktiviti ini
-  const groupFiltered = act ? users.filter(u => actAppliesToStudent(act, u)) : users;
-  const filtered = groupFiltered.filter(u =>
+  // Pelajar dari kumpulan sasaran aktiviti
+  let groupFiltered = act ? users.filter(u => actAppliesToStudent(act, u)) : users;
+
+  // Penapis kumpulan tambahan (dropdown pilihan kumpulan)
+  if (grp) groupFiltered = groupFiltered.filter(u => u.class === grp);
+
+  // Carian nama/matrik
+  let filtered = groupFiltered.filter(u =>
     !q || u.name.toLowerCase().includes(q) || u.matric.toLowerCase().includes(q)
   );
 
-  // Kira ringkasan sasaran vs hadir sebenar
+  // Tentukan status hadir untuk setiap pelajar
+  const withStatus = filtered.map(u => ({
+    ...u,
+    attended: atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present')
+  }));
+
+  // Penapis view (semua / hadir sahaja / tidak hadir sahaja)
+  let viewFiltered = withStatus;
+  if (_reportViewMode === 'hadir') viewFiltered = withStatus.filter(u => u.attended);
+  else if (_reportViewMode === 'tidak') viewFiltered = withStatus.filter(u => !u.attended);
+
+  // Sorting
+  if (_reportSortMode === 'hadir') {
+    viewFiltered.sort((a, b) => (b.attended ? 1 : 0) - (a.attended ? 1 : 0) || a.name.localeCompare(b.name));
+  } else if (_reportSortMode === 'tidak') {
+    viewFiltered.sort((a, b) => (a.attended ? 1 : 0) - (b.attended ? 1 : 0) || a.name.localeCompare(b.name));
+  } else {
+    viewFiltered.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Kira ringkasan (dari groupFiltered penuh, bukan terpenapis)
   const hadirCount = groupFiltered.filter(u =>
     atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present')
   ).length;
   const { sasaran, pct } = act ? getActPct(act, hadirCount) : { sasaran: groupFiltered.length, pct: 0 };
   const pctCol = pct >= 80 ? 'var(--a3)' : pct >= 60 ? 'var(--warn)' : 'var(--danger)';
 
-  // Tunjuk ringkasan di atas senarai
+  // Ringkasan
   const summaryEl = document.getElementById('report-summary');
   if (summaryEl) {
     summaryEl.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--bdr);border-radius:10px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--bdr);border-radius:10px;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
         <div style="font-size:12px;color:var(--t2);">
           Hadir: <b style="color:var(--a3);">${hadirCount}</b> &nbsp;|&nbsp;
           Sasaran: <b style="color:var(--ac);">${sasaran}</b> &nbsp;|&nbsp;
-          Tidak Hadir: <b style="color:var(--danger);">${sasaran - hadirCount < 0 ? 0 : sasaran - hadirCount}</b>
+          Tidak Hadir: <b style="color:var(--danger);">${Math.max(0, sasaran - hadirCount)}</b>
+          ${grp ? `<span style="margin-left:8px;font-size:10px;color:var(--ac);">· Kumpulan: ${grp}</span>` : ''}
         </div>
         <div style="font-size:16px;font-weight:800;color:${pctCol};">${pct}%</div>
       </div>`;
   }
 
-  if (!filtered.length) {
+  if (!viewFiltered.length) {
     document.getElementById('report-stu-list').innerHTML = '<div class="empty">Tiada pelajar ditemui.</div>';
     return;
   }
 
-  document.getElementById('report-stu-list').innerHTML = filtered.map(u => {
-    const attended = atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present');
+  const canManualReg = (ADMIN || IS_SUB_ADMIN || PEMANTAU) && act && act.status === 'Aktif';
+
+  document.getElementById('report-stu-list').innerHTML = viewFiltered.map(u => {
     const existingNote = actReports[u.matric] || '';
     const avImg = u.avatar
       ? `<img src="${u.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`
       : `<span style="font-size:10px;font-weight:700;">${initials(u.name)}</span>`;
+    // Butang daftar manual — hanya papar jika pelajar belum hadir dan sesi masih aktif
+    const manualBtn = (!u.attended && canManualReg)
+      ? `<button class="btn bd btn-sm" style="font-size:10px;padding:2px 8px;margin-top:4px;" onclick="manualRegisterStudent('${u.matric}','${_reportActId}')">✋ Daftar Manual</button>`
+      : '';
     return `
     <div class="report-stu-row" id="report-row-${u.matric}">
       <div class="stuav" style="width:32px;height:32px;font-size:9px;flex-shrink:0;">${avImg}</div>
       <div class="report-stu-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span class="report-stu-name">${u.name}</span>
-          <span class="report-status-badge ${attended?'rs-hadir':'rs-absent'}">${attended?'✅ Hadir':'❌ Tidak Hadir'}</span>
+          <span class="report-status-badge ${u.attended?'rs-hadir':'rs-absent'}">${u.attended?'✅ Hadir':'❌ Tidak Hadir'}</span>
         </div>
         <div class="report-stu-mat">${u.matric} · ${u.class}</div>
+        ${manualBtn}
         <textarea class="report-note-area" id="report-note-${u.matric}" placeholder="Tulis rumusan, ulasan atau makluman untuk pelajar ini..." oninput="markUnsaved('${u.matric}')">${existingNote}</textarea>
       </div>
     </div>`;
@@ -13924,14 +14102,178 @@ function renderReportList(filter = '') {
 }
 
 function filterReportList() {
-  const q = document.getElementById('report-stu-srch').value;
-  renderReportList(q);
+  renderReportList();
+}
+
+// Toggle sorting hadir/tidak hadir/nama
+function toggleReportSort() {
+  const btn = document.getElementById('report-sort-btn');
+  if (_reportSortMode === 'hadir') {
+    _reportSortMode = 'tidak';
+    if (btn) btn.textContent = '⬆ Tidak Hadir Dulu';
+  } else if (_reportSortMode === 'tidak') {
+    _reportSortMode = 'nama';
+    if (btn) btn.textContent = '🔤 Ikut Nama';
+  } else {
+    _reportSortMode = 'hadir';
+    if (btn) btn.textContent = '⬇ Hadir Dulu';
+  }
+  renderReportList();
+}
+
+// Toggle paparan semua / hadir sahaja / tidak hadir sahaja
+function toggleReportView() {
+  const btn = document.getElementById('report-view-btn');
+  if (_reportViewMode === 'semua') {
+    _reportViewMode = 'hadir';
+    if (btn) btn.textContent = '✅ Hadir Sahaja';
+  } else if (_reportViewMode === 'hadir') {
+    _reportViewMode = 'tidak';
+    if (btn) btn.textContent = '❌ Tidak Hadir Sahaja';
+  } else {
+    _reportViewMode = 'semua';
+    if (btn) btn.textContent = '👁 Semua';
+  }
+  renderReportList();
+}
+
+// Daftar pelajar secara manual ke dalam aktiviti
+async function manualRegisterStudent(matric, actId) {
+  const u = (DB.get('users') || []).find(x => x.matric === matric);
+  const act = (DB.get('activities') || []).find(a => a.id === actId);
+  if (!u || !act) return;
+  showConfirm(`Daftar kehadiran <b>${u.name}</b> secara manual untuk aktiviti <b>${act.name}</b>?`, async () => {
+    const res = await cloudPost('recordAttendance', { matric, actId, recordedBy: `Manual — ${ADMIN ? 'Admin' : 'Pemantau'}` });
+    if (res.status === 'error') return toast(res.message, 'error');
+    if (res.status === 'warn') return toast(res.message, 'warn');
+    // Kemaskini data lokal serta-merta
+    const atts = DB.get('attendance') || [];
+    atts.push({ id: 'r' + Date.now(), matric, actId, date: new Date().toISOString(), status: 'present', recordedBy: 'Manual' });
+    DB.set('attendance', atts);
+    toast(`✅ ${u.name} berjaya didaftarkan secara manual.`, 'success');
+    renderReportList(); // Refresh senarai — pelajar kini akan bertukar ke ✅ Hadir
+  });
 }
 
 function markUnsaved(matric) {
   const row = document.getElementById(`report-row-${matric}`);
   const ta = document.getElementById(`report-note-${matric}`);
   if (ta) ta.classList.add('rs-unsaved');
+}
+
+// Cetak / PDF senarai kehadiran aktiviti
+function printActivityReport() {
+  const act = (DB.get('activities') || []).find(a => a.id === _reportActId);
+  const users = DB.get('users') || [];
+  const atts = DB.get('attendance') || [];
+  if (!act) return;
+
+  const grp = document.getElementById('report-grp-filter')?.value || '';
+  let pelajar = users.filter(u => actAppliesToStudent(act, u));
+  if (grp) pelajar = pelajar.filter(u => u.class === grp);
+
+  const withStatus = pelajar.map(u => ({
+    ...u, attended: atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present')
+  }));
+
+  // Sort ikut mod semasa
+  if (_reportSortMode === 'hadir') withStatus.sort((a, b) => (b.attended?1:0)-(a.attended?1:0)||a.name.localeCompare(b.name));
+  else if (_reportSortMode === 'tidak') withStatus.sort((a, b) => (a.attended?1:0)-(b.attended?1:0)||a.name.localeCompare(b.name));
+  else withStatus.sort((a, b) => a.name.localeCompare(b.name));
+
+  let viewList = withStatus;
+  if (_reportViewMode === 'hadir') viewList = withStatus.filter(u => u.attended);
+  else if (_reportViewMode === 'tidak') viewList = withStatus.filter(u => !u.attended);
+
+  const hadirCount = withStatus.filter(u => u.attended).length;
+  const tidakCount = withStatus.length - hadirCount;
+  const pct = withStatus.length ? Math.round(hadirCount / withStatus.length * 100) : 0;
+  const cfg = DB.get('config') || {};
+  const inst = cfg.institutionName || 'EduTrack';
+  const now = new Date();
+
+  const rows = viewList.map((u, i) => `
+    <tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${u.name}</td>
+      <td>${u.matric}</td>
+      <td>${u.class || '—'}</td>
+      <td style="text-align:center;color:${u.attended?'#2e7d32':'#c62828'};font-weight:700;">${u.attended ? '✓ Hadir' : '✗ Tidak Hadir'}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Calibri,Arial,sans-serif;margin:0;padding:0;font-size:11pt;color:#1a1a1a;}
+    .hdr{background:linear-gradient(135deg,#1b2a4a,#0e7c7b);color:#fff;padding:20px 28px 16px;}
+    .hdr h1{margin:0 0 4px;font-size:16pt;} .hdr p{margin:0;font-size:9pt;opacity:.85;}
+    .stats{display:flex;gap:16px;padding:14px 28px;background:#f5f7fa;flex-wrap:wrap;}
+    .sb{background:#fff;border:1px solid #dde;border-radius:8px;padding:8px 16px;text-align:center;flex:1;min-width:90px;}
+    .sb .n{font-size:18pt;font-weight:800;color:#0e7c7b;} .sb .l{font-size:8pt;color:#666;}
+    table{width:calc(100% - 56px);margin:14px 28px;border-collapse:collapse;font-size:10pt;}
+    th{background:#1b2a4a;color:#fff;padding:7px 10px;text-align:left;font-size:9pt;}
+    td{padding:6px 10px;border-bottom:1px solid #eef;} tr:nth-child(even) td{background:#f9fbfc;}
+    .ftr{padding:14px 28px 20px;font-size:8pt;color:#888;display:flex;justify-content:space-between;border-top:2px solid #0e7c7b;margin-top:12px;}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style></head><body>
+  <div class="hdr">
+    <h1>${inst}</h1>
+    <p>Laporan Kehadiran: <strong>${act.name}</strong> (${act.type||''}) · ${act.date||''}</p>
+    <p>Dicetak: ${now.toLocaleString('ms-MY')}${grp ? ' · Kumpulan: '+grp : ''}</p>
+  </div>
+  <div class="stats">
+    <div class="sb"><div class="n">${withStatus.length}</div><div class="l">Jumlah Pelajar</div></div>
+    <div class="sb"><div class="n" style="color:#2e7d32;">${hadirCount}</div><div class="l">Hadir</div></div>
+    <div class="sb"><div class="n" style="color:#c62828;">${tidakCount}</div><div class="l">Tidak Hadir</div></div>
+    <div class="sb"><div class="n" style="color:${pct>=80?'#2e7d32':pct>=60?'#e08e0b':'#c62828'};">${pct}%</div><div class="l">Peratus Hadir</div></div>
+  </div>
+  <table>
+    <tr><th>#</th><th>Nama Pelajar</th><th>No. Matrik</th><th>Kumpulan</th><th>Status Kehadiran</th></tr>
+    ${rows}
+  </table>
+  <div class="ftr">
+    <span>EduTrack — Sistem Pengurusan Kehadiran</span>
+    <span>Tandatangan Pentadbir: ________________________</span>
+  </div>
+  </body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
+}
+
+// Eksport Excel senarai kehadiran aktiviti
+function exportActivityReportExcel() {
+  _ensureExportLibsLoaded();
+  const act = (DB.get('activities') || []).find(a => a.id === _reportActId);
+  const users = DB.get('users') || [];
+  const atts = DB.get('attendance') || [];
+  const reports = DB.get('act_reports') || {};
+  const actReports = reports[_reportActId] || {};
+  if (!act) return;
+
+  const grp = document.getElementById('report-grp-filter')?.value || '';
+  let pelajar = users.filter(u => actAppliesToStudent(act, u));
+  if (grp) pelajar = pelajar.filter(u => u.class === grp);
+
+  let withStatus = pelajar.map(u => ({
+    ...u, attended: atts.some(a => a.matric === u.matric && a.actId === _reportActId && a.status === 'present')
+  }));
+  if (_reportViewMode === 'hadir') withStatus = withStatus.filter(u => u.attended);
+  else if (_reportViewMode === 'tidak') withStatus = withStatus.filter(u => !u.attended);
+  if (_reportSortMode === 'hadir') withStatus.sort((a,b)=>(b.attended?1:0)-(a.attended?1:0)||a.name.localeCompare(b.name));
+  else if (_reportSortMode === 'tidak') withStatus.sort((a,b)=>(a.attended?1:0)-(b.attended?1:0)||a.name.localeCompare(b.name));
+  else withStatus.sort((a,b)=>a.name.localeCompare(b.name));
+
+  const ws = XLSX.utils.json_to_sheet(withStatus.map((u, i) => ({
+    'No.': i+1, 'Nama': u.name, 'Matrik': u.matric, 'Kumpulan': u.class||'',
+    'Program': u.progtype||'', 'Status': u.attended ? 'Hadir' : 'Tidak Hadir',
+    'Rumusan/Nota': actReports[u.matric]||''
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Kehadiran');
+  XLSX.writeFile(wb, `Kehadiran_${act.name.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('✅ Fail Excel dimuat turun!', 'success');
 }
 
 async function saveAllReports() {
@@ -14173,20 +14515,319 @@ function viewStu(mat){
 
 let _bTags=[];
 // ══════════════════════════════════════════════════════
-// MODUL LAPORAN DISIPLIN
+// MODUL LAPORAN DISIPLIN — Pengurusan Penuh
 // ══════════════════════════════════════════════════════
+
+// Warna status laporan
+function dpStatusColor(s) {
+  if (s === 'Selesai') return 'var(--a3)';
+  if (s === 'Sedang Diambil Tindakan') return 'var(--ac)';
+  return 'var(--warn)';
+}
+function dpStatusIcon(s) {
+  if (s === 'Selesai') return '✅';
+  if (s === 'Sedang Diambil Tindakan') return '⚡';
+  return '🔍';
+}
+
+// Render modul pengurusan laporan (tab Laporan)
+function renderLaporanModule() {
+  const all = DB.get('discipline_reports') || [];
+  const q = (document.getElementById('dp-search')?.value || '').toLowerCase();
+  const fs = document.getElementById('dp-filter-status')?.value || '';
+
+  const filtered = all.filter(r => {
+    const matchQ = !q || r.matric.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q) || r.isu.toLowerCase().includes(q);
+    const matchS = !fs || r.statusLaporan === fs;
+    return matchQ && matchS;
+  });
+
+  // Statistik
+  document.getElementById('dp-stat-total').textContent = all.length;
+  document.getElementById('dp-stat-siasatan').textContent = all.filter(r => r.statusLaporan === 'Dalam Siasatan').length;
+  document.getElementById('dp-stat-tindakan').textContent = all.filter(r => r.statusLaporan === 'Sedang Diambil Tindakan').length;
+  document.getElementById('dp-stat-selesai').textContent = all.filter(r => r.statusLaporan === 'Selesai').length;
+
+  const con = document.getElementById('dp-list-container');
+  if (!con) return;
+  if (!filtered.length) { con.innerHTML = '<div class="empty">Tiada laporan ditemui.</div>'; return; }
+
+  con.innerHTML = filtered.slice().reverse().map(r => {
+    const sc = dpStatusColor(r.statusLaporan);
+    const si = dpStatusIcon(r.statusLaporan);
+    const akuiLabel = r.akui === 'Ya'
+      ? `<span style="color:var(--a3);font-size:10px;">✅ Diakui pelajar</span>`
+      : `<span style="color:var(--danger);font-size:10px;">⏳ Belum diakui</span>`;
+    const lampiranBtn = r.lampiran
+      ? `<a href="${r.lampiran}" target="_blank" style="font-size:10px;color:var(--ac);">📎 Lihat Lampiran</a>`
+      : `<span style="font-size:10px;color:var(--t2);">Tiada lampiran</span>`;
+    return `<div class="card" style="border-left:3px solid ${sc};margin-bottom:10px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+        <div>
+          <span style="font-size:11px;font-weight:800;color:${sc};">${si} ${r.statusLaporan}</span>
+          <span style="font-size:10px;color:var(--t2);margin-left:8px;">📅 ${r.tarikh} ${r.masa ? '⏰'+r.masa : ''}</span>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;">
+          <button class="btn bs btn-sm" style="font-size:10px;padding:3px 8px;" onclick="openDpEdit('${r.id}')">✏️ Edit</button>
+          <button class="btn bd btn-sm" style="font-size:10px;padding:3px 8px;" onclick="printSingleLaporan('${r.id}')">🖨</button>
+          <button class="btn bd btn-sm" style="font-size:10px;padding:3px 8px;background:var(--danger);" onclick="delDisciplineReport('${r.id}')">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">👤 ${r.nama} <span style="font-size:11px;font-weight:400;color:var(--t2);">(${r.matric})</span></div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:5px;line-height:1.5;">⚠️ ${r.isu}</div>
+      ${r.cadangan ? `<div style="font-size:11px;color:var(--t2);margin-bottom:5px;">📌 ${r.cadangan}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:4px;">
+        <span style="font-size:10px;color:var(--t2);">Direkod oleh: ${r.direkodOleh}</span>
+        <div style="display:flex;gap:10px;align-items:center;">${akuiLabel} ${lampiranBtn}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Buka modal edit laporan
+function openDpEdit(id) {
+  const r = (DB.get('discipline_reports') || []).find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('dp-edit-id').value = id;
+  document.getElementById('m-dp-edit-ttl').textContent = `✏️ Kemaskini — ${r.nama}`;
+  document.getElementById('dp-edit-info').innerHTML =
+    `<strong>${r.tarikh} ${r.masa}</strong> · ${r.isu}`;
+  document.getElementById('dp-edit-status').value = r.statusLaporan || 'Dalam Siasatan';
+  document.getElementById('dp-edit-cadangan').value = r.cadangan || '';
+  document.getElementById('dp-edit-filename').textContent = 'Tiada fail baharu dipilih';
+  document.getElementById('dp-edit-preview').innerHTML = '';
+  document.getElementById('dp-edit-upload-prog').style.display = 'none';
+  // Pautan lampiran sedia ada
+  const existEl = document.getElementById('dp-edit-existing-link');
+  existEl.innerHTML = r.lampiran
+    ? `Lampiran sedia ada: <a href="${r.lampiran}" target="_blank" style="color:var(--ac);">📎 Buka pautan</a>`
+    : 'Tiada lampiran sedia ada.';
+  openM('m-dp-edit');
+}
+
+// Preview fail dalam modal REKOD BAHARU
+function previewDpNewFile(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('dp-filename').textContent = file.name + ` (${(file.size/1024).toFixed(1)} KB)`;
+  const prev = document.getElementById('dp-preview');
+  const url = URL.createObjectURL(file);
+  if (file.type.startsWith('image/')) {
+    prev.innerHTML = `<img src="${url}" style="max-width:100%;max-height:150px;border-radius:8px;margin-top:6px;object-fit:cover;">`;
+  } else if (file.type.startsWith('video/')) {
+    prev.innerHTML = `<video src="${url}" controls style="max-width:100%;max-height:130px;border-radius:8px;margin-top:6px;"></video>`;
+  }
+}
+
+// Preview fail dalam modal EDIT (sedia ada)
+function previewDpFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('dp-edit-filename').textContent = file.name + ` (${(file.size/1024).toFixed(1)} KB)`;
+  const prev = document.getElementById('dp-edit-preview');
+  const url = URL.createObjectURL(file);
+  if (file.type.startsWith('image/')) {
+    prev.innerHTML = `<img src="${url}" style="max-width:100%;max-height:160px;border-radius:8px;margin-top:6px;object-fit:cover;">`;
+  } else if (file.type.startsWith('video/')) {
+    prev.innerHTML = `<video src="${url}" controls style="max-width:100%;max-height:140px;border-radius:8px;margin-top:6px;"></video>`;
+  }
+}
+
+// Simpan kemaskini laporan (termasuk muat naik fail jika ada)
+async function saveDisciplineEdit() {
+  const id = document.getElementById('dp-edit-id').value;
+  const statusLaporan = document.getElementById('dp-edit-status').value;
+  const cadangan = document.getElementById('dp-edit-cadangan').value.trim();
+  const fileInput = document.getElementById('dp-edit-file');
+  let lampiran = undefined;
+
+  // Muat naik fail ke Google Drive jika ada fail dipilih
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    // Semak saiz fail (had 10MB)
+    if (file.size > 10 * 1024 * 1024) return toast('⚠️ Fail terlalu besar. Had maksimum 10MB.', 'error');
+    document.getElementById('dp-edit-upload-prog').style.display = 'block';
+    toast('⏳ Memuat naik lampiran ke Google Drive...', 'warn');
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = e => res(e.target.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const upRes = await cloudPost('uploadToGoogleDrive', {
+        filename: file.name, base64, mimeType: file.type
+      });
+      if (upRes.status === 'error') { document.getElementById('dp-edit-upload-prog').style.display = 'none'; return toast('⚠️ Gagal muat naik: ' + upRes.message, 'error'); }
+      lampiran = upRes.url;
+      toast('✅ Lampiran berjaya dimuat naik!', 'success');
+    } catch(e) { document.getElementById('dp-edit-upload-prog').style.display = 'none'; return toast('⚠️ Ralat muat naik: ' + e, 'error'); }
+    document.getElementById('dp-edit-upload-prog').style.display = 'none';
+  }
+
+  const payload = { id, statusLaporan, cadangan };
+  if (lampiran !== undefined) payload.lampiran = lampiran;
+  const res = await cloudPost('updateDisciplineReport', payload);
+  if (res.status === 'error') return toast(res.message, 'error');
+
+  // Kemaskini lokal
+  let reports = DB.get('discipline_reports') || [];
+  const i = reports.findIndex(r => r.id === id);
+  if (i > -1) {
+    reports[i].statusLaporan = statusLaporan;
+    reports[i].cadangan = cadangan;
+    if (lampiran !== undefined) reports[i].lampiran = lampiran;
+    DB.set('discipline_reports', reports);
+  }
+  closeM('m-dp-edit');
+  renderLaporanModule();
+  toast('✅ Laporan dikemaskini.', 'success');
+}
+
+// ──── EKSPORT LAPORAN ────────────────────────────────
+
+// Template HTML untuk cetak/word
+function buildDpReportHTML(recs, title = 'Laporan Salahlaku / Disiplin') {
+  const rows = recs.map((r,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.tarikh}<br><small>${r.masa||''}</small></td>
+      <td>${r.nama}<br><small style="color:#666;">${r.matric}</small></td>
+      <td>${r.isu}</td>
+      <td>${r.cadangan||'—'}</td>
+      <td>${r.direkodOleh}</td>
+      <td style="color:${r.statusLaporan==='Selesai'?'#2e7d32':r.statusLaporan==='Sedang Diambil Tindakan'?'#1565c0':'#e08e0b'};">
+        ${r.statusLaporan||'—'}
+      </td>
+      <td>${r.akui==='Ya'?'✓ Ya':'✗ Belum'}</td>
+      ${r.lampiran?`<td><a href="${r.lampiran}">Pautan</a></td>`:'<td>—</td>'}
+    </tr>`).join('');
+
+  const cfg = DB.get('config') || {};
+  const inst = cfg.institutionName || 'EduTrack';
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ms-MY',{day:'2-digit',month:'long',year:'numeric'});
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Calibri,Arial,sans-serif;margin:0;padding:0;color:#1a1a1a;font-size:12pt;}
+    .header{background:linear-gradient(135deg,#1b2a4a,#0e7c7b);color:#fff;padding:24px 32px 20px;margin-bottom:24px;}
+    .header h1{margin:0 0 4px;font-size:20pt;letter-spacing:1px;}
+    .header p{margin:0;font-size:10pt;opacity:.85;}
+    .meta{padding:0 32px;margin-bottom:18px;display:flex;gap:32px;flex-wrap:wrap;}
+    .meta-item{font-size:10pt;color:#555;}
+    .meta-item strong{color:#1b2a4a;}
+    .stats{padding:0 32px;display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+    .stat-box{background:#f5f7fa;border:1px solid #dde;border-radius:8px;padding:10px 18px;text-align:center;flex:1;min-width:100px;}
+    .stat-box .num{font-size:22pt;font-weight:800;color:#0e7c7b;}
+    .stat-box .lbl{font-size:9pt;color:#666;}
+    table{width:calc(100% - 64px);margin:0 32px;border-collapse:collapse;font-size:10pt;}
+    th{background:#1b2a4a;color:#fff;padding:8px 10px;text-align:left;font-size:9pt;}
+    td{padding:7px 10px;border-bottom:1px solid #eef;vertical-align:top;}
+    tr:nth-child(even) td{background:#f9fbfc;}
+    .footer{padding:20px 32px 28px;margin-top:24px;border-top:2px solid #0e7c7b;font-size:9pt;color:#888;display:flex;justify-content:space-between;}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style></head><body>
+  <div class="header">
+    <h1>${inst}</h1>
+    <p>${title} · Dicetak: ${dateStr}</p>
+  </div>
+  <div class="stats">
+    <div class="stat-box"><div class="num">${recs.length}</div><div class="lbl">Jumlah</div></div>
+    <div class="stat-box"><div class="num">${recs.filter(r=>r.statusLaporan==='Dalam Siasatan').length}</div><div class="lbl">Siasatan</div></div>
+    <div class="stat-box"><div class="num">${recs.filter(r=>r.statusLaporan==='Sedang Diambil Tindakan').length}</div><div class="lbl">Tindakan</div></div>
+    <div class="stat-box"><div class="num">${recs.filter(r=>r.statusLaporan==='Selesai').length}</div><div class="lbl">Selesai</div></div>
+  </div>
+  <table>
+    <tr><th>#</th><th>Tarikh/Masa</th><th>Pelajar</th><th>Isu Salahlaku</th><th>Cadangan Tindakan</th><th>Direkod Oleh</th><th>Status</th><th>Diakui</th><th>Lampiran</th></tr>
+    ${rows}
+  </table>
+  <div class="footer">
+    <span>EduTrack — Sistem Pengurusan Kehadiran</span>
+    <span>Dijana: ${now.toLocaleString('ms-MY')}</span>
+  </div>
+  </body></html>`;
+}
+
+// Cetak satu laporan sahaja
+function printSingleLaporan(id) {
+  const r = (DB.get('discipline_reports') || []).find(x => x.id === id);
+  if (!r) return;
+  const html = buildDpReportHTML([r], `Laporan Salahlaku — ${r.nama}`);
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
+}
+
+// Eksport semua laporan sebagai Word (HTML blob)
+function exportDisciplineWord() {
+  const recs = getFilteredDpRecs();
+  if (!recs.length) return toast('Tiada laporan untuk dieksport.', 'warn');
+  const html = buildDpReportHTML(recs);
+  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `LaporanDisiplin_${new Date().toISOString().slice(0,10)}.doc`;
+  a.click();
+  toast('✅ Fail Word dimuat turun!', 'success');
+}
+
+// Eksport PDF (cetak-ke-PDF)
+function exportDisciplinePDF() {
+  const recs = getFilteredDpRecs();
+  if (!recs.length) return toast('Tiada laporan untuk dieksport.', 'warn');
+  const html = buildDpReportHTML(recs);
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => { w.print(); }, 700);
+}
+
+// Eksport Excel
+function exportDisciplineExcel() {
+  _ensureExportLibsLoaded();
+  const recs = getFilteredDpRecs();
+  if (!recs.length) return toast('Tiada laporan untuk dieksport.', 'warn');
+  const ws = XLSX.utils.json_to_sheet(recs.map((r,i) => ({
+    'No.': i+1, 'Tarikh': r.tarikh, 'Masa': r.masa||'',
+    'Nama': r.nama, 'Matrik': r.matric, 'Isu Salahlaku': r.isu,
+    'Cadangan Tindakan': r.cadangan||'', 'Status': r.statusLaporan||'',
+    'Direkod Oleh': r.direkodOleh, 'Diakui Pelajar': r.akui||'Belum',
+    'Tarikh Akui': r.tarikhAkui||'', 'Lampiran': r.lampiran||''
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'LaporanDisiplin');
+  XLSX.writeFile(wb, `LaporanDisiplin_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('✅ Fail Excel dimuat turun!', 'success');
+}
+
+// Dapatkan rekod yang sedang ditapis (untuk eksport)
+function getFilteredDpRecs() {
+  const all = DB.get('discipline_reports') || [];
+  const q = (document.getElementById('dp-search')?.value || '').toLowerCase();
+  const fs = document.getElementById('dp-filter-status')?.value || '';
+  return all.filter(r => {
+    const matchQ = !q || r.matric.toLowerCase().includes(q) || r.nama.toLowerCase().includes(q) || r.isu.toLowerCase().includes(q);
+    const matchS = !fs || r.statusLaporan === fs;
+    return matchQ && matchS;
+  });
+}
 
 function openDisciplineModal(mat) {
   const u = (DB.get('users')||[]).find(x => x.matric === mat);
   if (!u) return;
   document.getElementById('m-disiplin-ttl').textContent = `📋 Laporan Salahlaku — ${u.name.split(' ')[0]}`;
   document.getElementById('dp-matric').value = mat;
-  // Isi tarikh & masa semasa sebagai lalai
   const now = new Date();
   document.getElementById('dp-tarikh').value = now.toISOString().split('T')[0];
   document.getElementById('dp-masa').value = now.toTimeString().slice(0,5);
   document.getElementById('dp-isu').value = '';
   document.getElementById('dp-cadangan').value = '';
+  document.getElementById('dp-status-laporan').value = 'Dalam Siasatan';
+  document.getElementById('dp-filename').textContent = 'Tiada fail dipilih';
+  document.getElementById('dp-preview').innerHTML = '';
+  document.getElementById('dp-upload-prog').style.display = 'none';
+  const fi = document.getElementById('dp-file'); if (fi) fi.value = '';
   openM('m-disiplin');
 }
 
@@ -14196,19 +14837,50 @@ async function saveDisciplineReport() {
   const masa = document.getElementById('dp-masa').value;
   const isu = document.getElementById('dp-isu').value.trim();
   const cadangan = document.getElementById('dp-cadangan').value.trim();
+  const statusLaporan = document.getElementById('dp-status-laporan').value;
   if (!isu) return toast('Sila masukkan keterangan isu salahlaku', 'error');
   const u = (DB.get('users')||[]).find(x => x.matric === mat);
   if (!u) return toast('Pelajar tidak dijumpai', 'error');
   const who = ADMIN ? 'Admin Utama' : (IS_SUB_ADMIN ? 'Sub-Admin' : 'Pemantau');
-  const payload = { matric: mat, nama: u.name, tarikh, masa, isu, cadangan, direkodOleh: who };
+
+  // Muat naik lampiran ke Google Drive jika ada fail dipilih
+  let lampiran = '';
+  const fileInput = document.getElementById('dp-file');
+  if (fileInput && fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    if (file.size > 10 * 1024 * 1024) return toast('⚠️ Fail terlalu besar. Had maksimum 10MB.', 'error');
+    document.getElementById('dp-upload-prog').style.display = 'block';
+    toast('⏳ Memuat naik lampiran ke Google Drive...', 'warn');
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = e => res(e.target.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const upRes = await cloudPost('uploadToGoogleDrive', { filename: file.name, base64, mimeType: file.type });
+      if (upRes.status === 'error') {
+        document.getElementById('dp-upload-prog').style.display = 'none';
+        return toast('⚠️ Gagal muat naik: ' + upRes.message, 'error');
+      }
+      lampiran = upRes.url;
+    } catch(e) {
+      document.getElementById('dp-upload-prog').style.display = 'none';
+      return toast('⚠️ Ralat muat naik: ' + e, 'error');
+    }
+    document.getElementById('dp-upload-prog').style.display = 'none';
+  }
+
+  const payload = { matric: mat, nama: u.name, tarikh, masa, isu, cadangan, statusLaporan, direkodOleh: who, lampiran };
   toast('Merekod laporan...', 'warn');
   const res = await cloudPost('addDisciplineReport', payload);
   if (res.status === 'error') return toast(res.message, 'error');
-  // Simpan secara lokal serta-merta (tidak perlu tunggu sync)
+  const newId = res.id || ('dp' + Date.now());
   const reports = DB.get('discipline_reports') || [];
-  reports.push({ id: 'dp' + Date.now(), ...payload, akui: 'Belum', tarikhAkui: '' });
+  reports.push({ id: newId, ...payload, akui: 'Belum', tarikhAkui: '' });
   DB.set('discipline_reports', reports);
   closeM('m-disiplin');
+  renderLaporanModule();
   toast('✅ Laporan direkod. Notifikasi dihantar ke akaun pelajar.', 'success');
 }
 
@@ -14241,20 +14913,31 @@ function renderDisciplineList(mat, isAdmin = false) {
   const reports = (DB.get('discipline_reports') || []).filter(r => r.matric === mat);
   if (!reports.length) return '<div style="font-size:12px;color:var(--t2);padding:8px 0;">Tiada laporan salahlaku direkod.</div>';
   return reports.slice().reverse().map(r => {
-    const statusColor = r.akui === 'Ya' ? 'var(--a3)' : 'var(--danger)';
-    const statusLabel = r.akui === 'Ya'
-      ? `✅ Diakui pada ${new Date(r.tarikhAkui).toLocaleDateString('ms-MY')}`
-      : '⏳ Belum Diakui Pelajar';
-    const delBtn = isAdmin ? `<button class="btn bd btn-sm" style="font-size:10px;padding:2px 7px;" onclick="delDisciplineReport('${r.id}')">🗑</button>` : '';
-    return `<div style="background:rgba(255,0,0,0.04);border:1px solid rgba(255,0,0,0.15);border-radius:10px;padding:10px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-        <span style="font-size:10px;font-weight:700;color:var(--warn);">📅 ${r.tarikh} ${r.masa ? '⏰ '+r.masa : ''}</span>
-        ${delBtn}
+    const sc = dpStatusColor(r.statusLaporan);
+    const si = dpStatusIcon(r.statusLaporan);
+    const akuiLabel = r.akui === 'Ya'
+      ? `<span style="color:var(--a3);font-size:10px;">✅ Diakui pelajar</span>`
+      : `<span style="color:var(--danger);font-size:10px;">⏳ Belum diakui</span>`;
+    const lampiranBtn = r.lampiran
+      ? `<a href="${r.lampiran}" target="_blank" style="font-size:10px;color:var(--ac);text-decoration:none;">📎 Lihat Lampiran</a>`
+      : '';
+    const adminBtns = isAdmin ? `
+      <button class="btn bs btn-sm" style="font-size:10px;padding:2px 7px;" onclick="openDpEdit('${r.id}')">✏️ Edit</button>
+      <button class="btn bd btn-sm" style="font-size:10px;padding:2px 7px;background:var(--danger);" onclick="delDisciplineReport('${r.id}')">🗑</button>` : '';
+    return `<div style="background:rgba(255,0,0,0.04);border:1px solid rgba(255,0,0,0.18);border-left:3px solid ${sc};border-radius:10px;padding:10px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;flex-wrap:wrap;gap:4px;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:700;color:var(--warn);">📅 ${r.tarikh} ${r.masa ? '⏰ '+r.masa : ''}</span>
+          <span style="font-size:10px;font-weight:700;color:${sc};background:rgba(0,0,0,0.15);padding:2px 7px;border-radius:20px;">${si} ${r.statusLaporan||'—'}</span>
+        </div>
+        <div style="display:flex;gap:5px;">${adminBtns}</div>
       </div>
       <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text);">⚠️ ${r.isu}</div>
       ${r.cadangan ? `<div style="font-size:11px;color:var(--t2);margin-bottom:5px;">📌 Cadangan: ${r.cadangan}</div>` : ''}
-      <div style="font-size:10px;color:var(--t2);margin-bottom:4px;">Direkod oleh: ${r.direkodOleh}</div>
-      <div style="font-size:11px;font-weight:600;color:${statusColor};">${statusLabel}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-top:4px;">
+        <div style="display:flex;gap:8px;align-items:center;">${akuiLabel} ${lampiranBtn}</div>
+        <span style="font-size:10px;color:var(--t2);">Oleh: ${r.direkodOleh}</span>
+      </div>
     </div>`;
   }).join('');
 }
