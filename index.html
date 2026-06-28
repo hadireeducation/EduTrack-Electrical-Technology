@@ -11072,6 +11072,8 @@ body.mode-pemantau .pemantau-only { display: block !important; }
       <div class="card-hdr" style="color: #a78bfa;">📊 Dashboard Informasi & Pengumuman Program</div>
       <!-- Notifikasi Laporan Disiplin — hanya papar jika ada laporan yang belum diakui -->
       <div id="stu-discipline-notif" style="display:none;"></div>
+      <!-- Notifikasi Ketidakhadiran Automatik — peringatan berdasarkan rekod tidak hadir -->
+      <div id="stu-absence-notif" style="display:none;"></div>
       <div id="stu-ann-list" style="max-height: 600px; overflow-y: auto;"></div>
     </div>
 
@@ -11544,6 +11546,24 @@ body.mode-pemantau .pemantau-only { display: block !important; }
 
     <!-- Senarai laporan -->
     <div id="dp-list-container"></div>
+
+    <!-- Bahagian: Notifikasi Ketidakhadiran -->
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--bdr);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">📢 Notifikasi Ketidakhadiran</div>
+          <div style="font-size:11px;color:var(--t2);">Peringatan automatik dihantar ke akaun pelajar yang tidak hadir</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn bd btn-sm" onclick="exportAbsenceNotifExcel()" style="font-size:11px;">📊 Excel</button>
+          <button class="btn bd btn-sm" onclick="exportAbsenceNotifPDF()" style="font-size:11px;">🖨 PDF</button>
+        </div>
+      </div>
+      <!-- Butang jana notifikasi mengikut aktiviti -->
+      <div id="dp-absence-gen-btns" style="margin-bottom:10px;"></div>
+      <!-- Ringkasan notifikasi -->
+      <div id="dp-absence-summary"></div>
+    </div>
   </div>
 
   <div id="at-set" class="screen">
@@ -12107,7 +12127,7 @@ const DB = {
 };
 
 // JANTUNG API CLOUD DATABASE
-let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbwSHxCvZ2L8j1ylc600UZTpWEemMdcujE4rINHuI3effiWQ0W_TsVGs3-CCMrzfOIzh/exec";
+let API_URL = DB.get('cloud_api_url') || "https://script.google.com/macros/s/AKfycbyzhPj21pSUnOyvnJJhHmVkdilSow-KYyZRGlHbwA5G0WH63G2ZInyHBaC8w7RvoDF-/exec";
 
 // CONFIG TEMA WARNA (DASHBOARD CUSTOM THEME)
 const defaultTheme = {
@@ -12536,6 +12556,18 @@ async function syncAllCloud(silent = false) {
         }));
         DB.set('discipline_reports', mappedDiscipline);
       }
+      if (d.absenceNotif !== undefined) {
+        const mappedAbsence = (d.absenceNotif || []).map(n => ({
+          id: n.ID||'', matric: n.Matrik||'', nama: n.Nama||'',
+          actId: n.AktivitiID||'', actName: n.NamaAktiviti||'', actType: n.JenisAktiviti||'',
+          tarikh: n.Tarikh||'', masa: n.Masa||'',
+          tahap: n.Tahap||'', mesej: n.Mesej||'',
+          kekerapanTidakHadir: n.KekerapanTidakHadir||0,
+          dijanaOleh: n.DijanaOleh||'',
+          akui: n.Akui||'Belum', tarikhAkui: n.TarikhAkui||''
+        }));
+        DB.set('absence_notif', mappedAbsence);
+      }
 
       // Konfigurasi (sumber kebenaran tunggal: cloud Config sheet)
       const cfg = d.config || {};
@@ -12850,6 +12882,7 @@ function renderStuDash(){
   if(!CU)return;
   renderVisitorStats();
   renderDisciplineNotif(); // Semak & papar notifikasi laporan disiplin yang belum diakui
+  renderAbsenceNotif();   // Semak & papar notifikasi ketidakhadiran yang belum diakui
   const freshU=(DB.get('users')||[]).find(u=>u.matric===CU.matric);
   if(freshU)CU=freshU;
   document.getElementById('sn-name').textContent=CU.name.split(' ')[0];
@@ -14530,6 +14563,12 @@ function dpStatusIcon(s) {
   return '🔍';
 }
 
+// XLSX, jsPDF, AutoTable sudah inline terus — _ensureExportLibsLoaded tidak perlu buat apa-apa
+// (Fungsi ini wujud untuk keserasian dengan versi lazy-load, tapi dalam fail ini library sudah sedia)
+function _ensureExportLibsLoaded() {
+  // Tiada tindakan diperlukan — semua library sudah dimuatkan semasa halaman dibuka
+}
+
 // Render modul pengurusan laporan (tab Laporan)
 function renderLaporanModule() {
   const all = DB.get('discipline_reports') || [];
@@ -14582,6 +14621,55 @@ function renderLaporanModule() {
       </div>
     </div>`;
   }).join('');
+
+  // Render bahagian Notifikasi Ketidakhadiran di bawah
+  _renderAbsenceGenBtns();
+  _renderAbsenceSummary();
+}
+
+// Papar butang jana notifikasi mengikut aktiviti Selesai/Aktif
+function _renderAbsenceGenBtns() {
+  const el = document.getElementById('dp-absence-gen-btns');
+  if (!el) return;
+  const acts = (DB.get('activities') || []).filter(a => a.status === 'Selesai' || a.status === 'Aktif');
+  const notifs = DB.get('absence_notif') || [];
+  if (!acts.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t2);">Tiada aktiviti untuk jana notifikasi.</div>'; return; }
+  el.innerHTML = acts.map(a => {
+    const hasSent = notifs.some(n => n.actId === a.id);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.03);border:1px solid var(--bdr);border-radius:8px;margin-bottom:5px;flex-wrap:wrap;gap:6px;">
+      <span style="font-size:11px;color:var(--text);">${a.name} <span style="color:var(--t2);">(${a.type})</span></span>
+      <div style="display:flex;gap:5px;">
+        ${hasSent ? '<span style="font-size:10px;color:var(--a3);">✅ Sudah dihantar</span>' : ''}
+        <button class="btn bd btn-sm" style="font-size:10px;padding:2px 8px;" onclick="generateAbsenceNotifications('${a.id}')">📢 Jana Notifikasi</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Papar ringkasan semua notifikasi ketidakhadiran
+function _renderAbsenceSummary() {
+  const el = document.getElementById('dp-absence-summary');
+  if (!el) return;
+  const notifs = DB.get('absence_notif') || [];
+  if (!notifs.length) { el.innerHTML = '<div style="font-size:11px;color:var(--t2);padding:8px 0;">Tiada notifikasi ketidakhadiran direkod.</div>'; return; }
+  const total = notifs.length;
+  const belum = notifs.filter(n => n.akui !== 'Ya').length;
+  const akui = total - belum;
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <div class="scard" style="flex:1;min-width:80px;"><div class="snum cc">${total}</div><div class="slbl">Jumlah</div></div>
+      <div class="scard" style="flex:1;min-width:80px;"><div class="snum" style="color:var(--danger);">${belum}</div><div class="slbl">Belum Diakui</div></div>
+      <div class="scard" style="flex:1;min-width:80px;"><div class="snum cg">${akui}</div><div class="slbl">Sudah Diakui</div></div>
+    </div>
+    ${notifs.slice().reverse().slice(0,10).map(n => `
+    <div style="padding:8px 10px;background:rgba(255,255,255,0.02);border:1px solid var(--bdr);border-left:3px solid ${n.akui==='Ya'?'var(--a3)':'var(--warn)'};border-radius:8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+        <span style="font-size:11px;font-weight:600;">${n.nama} <span style="font-weight:400;color:var(--t2);">(${n.matric})</span></span>
+        <span style="font-size:10px;color:${n.akui==='Ya'?'var(--a3)':'var(--warn)'};">${n.akui==='Ya'?'✅ Diakui':'⏳ Belum diakui'}</span>
+      </div>
+      <div style="font-size:10px;color:var(--t2);margin-top:2px;">${n.actName} · ${n.tahap.replace(/[🔴🟡🟠]/g,'').trim()} · ${n.tarikh}</div>
+    </div>`).join('')}
+    ${notifs.length > 10 ? `<div style="font-size:10px;color:var(--t2);text-align:center;padding:4px;">...dan ${notifs.length-10} lagi. Guna butang Excel/PDF untuk senarai penuh.</div>` : ''}`;
 }
 
 // Buka modal edit laporan
@@ -14960,6 +15048,188 @@ function renderDisciplineNotif() {
         Saya faham dan mengakui laporan ini ✓
       </label>
     </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SISTEM NOTIFIKASI KETIDAKHADIRAN AUTOMATIK
+// ══════════════════════════════════════════════════════
+// Sistem ini menjana notifikasi peringatan kepada pelajar
+// yang tidak hadir aktiviti/program. Notifikasi disimpan
+// dalam DB lokal dan cloud. Pelajar perlu akui setiap notifikasi.
+// Admin/pemantau boleh eksport senarai notifikasi (Excel/PDF).
+
+// Jana dan simpan notifikasi ketidakhadiran untuk semua pelajar yang tidak hadir
+// Dipanggil oleh admin selepas sesi tamat atau secara manual
+async function generateAbsenceNotifications(actId) {
+  const act = (DB.get('activities') || []).find(a => a.id === actId);
+  if (!act) return;
+  const users = DB.get('users') || [];
+  const atts = DB.get('attendance') || [];
+  const existing = DB.get('absence_notif') || [];
+
+  // Cari pelajar yang tidak hadir
+  const eligible = users.filter(u => actAppliesToStudent(act, u));
+  const absent = eligible.filter(u =>
+    !atts.some(a => a.matric === u.matric && a.actId === actId && a.status === 'present')
+  );
+  if (!absent.length) { toast('Semua pelajar hadir — tiada notifikasi perlu dihantar.', 'success'); return; }
+
+  const existingIds = new Set(existing.map(n => `${n.matric}_${n.actId}`));
+  const newNotifs = [];
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const timeStr = now.toTimeString().slice(0,5);
+
+  absent.forEach(u => {
+    const key = `${u.matric}_${actId}`;
+    if (existingIds.has(key)) return; // Elak duplikasi
+    // Kira berapa kali pelajar ini tidak hadir dalam kategori yang sama
+    const sameTypeAtts = atts.filter(a => {
+      const relAct = (DB.get('activities')||[]).find(x => x.id === a.actId);
+      return relAct && relAct.type === act.type;
+    });
+    const sameTypeAbsent = eligible.filter(u2 => u2.matric === u.matric).length > 0 ?
+      (DB.get('activities')||[]).filter(a2 => a2.type === act.type && actAppliesToStudent(a2, u))
+        .filter(a2 => !atts.some(att => att.matric === u.matric && att.actId === a2.id && att.status === 'present')).length : 0;
+
+    const tahap = sameTypeAbsent >= 3 ? '🔴 Kritikal' : sameTypeAbsent >= 2 ? '🟡 Amaran' : '🟠 Peringatan';
+    const mesej = sameTypeAbsent >= 3
+      ? `Anda telah tidak hadir sebanyak ${sameTypeAbsent} kali dalam kategori ${act.type}. Tindakan segera diperlukan.`
+      : sameTypeAbsent >= 2
+      ? `Anda telah tidak hadir sebanyak ${sameTypeAbsent} kali dalam kategori ${act.type}. Sila ambil perhatian.`
+      : `Anda tidak hadir untuk ${act.type} "${act.name}". Kehadiran anda penting.`;
+
+    const notif = {
+      id: 'an' + now.getTime() + Math.random().toString(36).slice(2,6),
+      matric: u.matric, nama: u.name,
+      actId, actName: act.name, actType: act.type,
+      tarikh: dateStr, masa: timeStr,
+      tahap, mesej,
+      kekerapanTidakHadir: sameTypeAbsent,
+      akui: 'Belum', tarikhAkui: '',
+      dijanaOleh: ADMIN ? 'Admin Utama' : (IS_SUB_ADMIN ? 'Sub-Admin' : 'Pemantau')
+    };
+    newNotifs.push(notif);
+  });
+
+  if (!newNotifs.length) { toast('Notifikasi sudah dihantar sebelum ini untuk aktiviti ini.', 'warn'); return; }
+
+  toast(`⏳ Menghantar ${newNotifs.length} notifikasi ketidakhadiran...`, 'warn');
+  // Simpan ke cloud satu demi satu
+  let sent = 0;
+  for (const n of newNotifs) {
+    const res = await cloudPost('addAbsenceNotification', n);
+    if (res.status !== 'error') sent++;
+  }
+  const allNotifs = [...existing, ...newNotifs];
+  DB.set('absence_notif', allNotifs);
+  toast(`✅ ${sent} notifikasi ketidakhadiran berjaya dihantar ke akaun pelajar.`, 'success');
+  renderLaporanModule();
+}
+
+// Pelajar akui notifikasi ketidakhadiran
+async function acknowledgeAbsenceNotif(id) {
+  if (!CU) return;
+  const res = await cloudPost('ackAbsenceNotification', { id, matric: CU.matric });
+  if (res.status === 'error') return toast(res.message, 'error');
+  let notifs = DB.get('absence_notif') || [];
+  const i = notifs.findIndex(n => n.id === id);
+  if (i > -1) { notifs[i].akui = 'Ya'; notifs[i].tarikhAkui = new Date().toISOString(); }
+  DB.set('absence_notif', notifs);
+  renderAbsenceNotif();
+  toast('✅ Anda telah mengesahkan penerimaan notifikasi ini.', 'success');
+}
+
+// Render notifikasi ketidakhadiran dalam dashboard pelajar
+function renderAbsenceNotif() {
+  const el = document.getElementById('stu-absence-notif');
+  if (!el || !CU) return;
+  const pending = (DB.get('absence_notif') || []).filter(n => n.matric === CU.matric && n.akui !== 'Ya');
+  if (!pending.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  el.innerHTML = pending.map(n => {
+    const borderColor = n.tahap.includes('Kritikal') ? 'rgba(220,38,38,0.5)' : n.tahap.includes('Amaran') ? 'rgba(224,142,11,0.5)' : 'rgba(234,88,12,0.5)';
+    const bg = n.tahap.includes('Kritikal') ? 'rgba(220,38,38,0.07)' : n.tahap.includes('Amaran') ? 'rgba(224,142,11,0.07)' : 'rgba(234,88,12,0.07)';
+    return `<div style="background:${bg};border:1.5px solid ${borderColor};border-radius:12px;padding:12px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:800;color:var(--warn);margin-bottom:6px;">${n.tahap} — PERINGATAN KETIDAKHADIRAN</div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:4px;">📚 ${n.actName} (${n.actType}) · 📅 ${n.tarikh}</div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:8px;line-height:1.5;">${n.mesej}</div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--warn);">
+        <input type="checkbox" onchange="if(this.checked) acknowledgeAbsenceNotif('${n.id}')" style="width:16px;height:16px;cursor:pointer;accent-color:var(--ac);">
+        Saya telah membaca dan memahami peringatan ini ✓
+      </label>
+    </div>`;
+  }).join('');
+}
+
+// Eksport notifikasi ketidakhadiran — Excel
+function exportAbsenceNotifExcel(filterActId) {
+  _ensureExportLibsLoaded();
+  let notifs = DB.get('absence_notif') || [];
+  if (filterActId) notifs = notifs.filter(n => n.actId === filterActId);
+  if (!notifs.length) return toast('Tiada notifikasi untuk dieksport.', 'warn');
+  const ws = XLSX.utils.json_to_sheet(notifs.map((n,i) => ({
+    'No.': i+1, 'Nama': n.nama, 'Matrik': n.matric,
+    'Aktiviti': n.actName, 'Jenis': n.actType,
+    'Tarikh Notifikasi': n.tarikh, 'Tahap': n.tahap.replace(/[🔴🟡🟠]/g,'').trim(),
+    'Mesej Peringatan': n.mesej,
+    'Kekerapan Tidak Hadir': n.kekerapanTidakHadir,
+    'Status Akui': n.akui, 'Tarikh Akui': n.tarikhAkui ? new Date(n.tarikhAkui).toLocaleDateString('ms-MY') : '',
+    'Dijana Oleh': n.dijanaOleh
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'NotifikasiKetidakhadiran');
+  XLSX.writeFile(wb, `NotifikasiKetidakhadiran_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('✅ Fail Excel dimuat turun!', 'success');
+}
+
+// Eksport notifikasi ketidakhadiran — PDF/cetak
+function exportAbsenceNotifPDF(filterActId) {
+  let notifs = DB.get('absence_notif') || [];
+  if (filterActId) notifs = notifs.filter(n => n.actId === filterActId);
+  if (!notifs.length) return toast('Tiada notifikasi untuk dieksport.', 'warn');
+  const cfg = DB.get('config') || {};
+  const inst = cfg.institutionName || 'EduTrack';
+  const now = new Date();
+  const rows = notifs.map((n,i) => `
+    <tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${n.nama}<br><small style="color:#666;">${n.matric}</small></td>
+      <td>${n.actName}<br><small style="color:#666;">${n.actType}</small></td>
+      <td>${n.tarikh}</td>
+      <td style="font-weight:700;color:${n.tahap.includes('Kritikal')?'#c62828':n.tahap.includes('Amaran')?'#e08e0b':'#e65100'};">${n.tahap.replace(/[🔴🟡🟠]/g,'').trim()}</td>
+      <td style="font-size:10pt;">${n.mesej}</td>
+      <td style="text-align:center;color:${n.akui==='Ya'?'#2e7d32':'#c62828'};font-weight:700;">${n.akui==='Ya'?'✓ Ya':'✗ Belum'}</td>
+    </tr>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body{font-family:Calibri,Arial;margin:0;padding:0;font-size:11pt;}
+    .hdr{background:linear-gradient(135deg,#1b2a4a,#0e7c7b);color:#fff;padding:20px 28px 16px;}
+    .hdr h1{margin:0 0 4px;font-size:16pt;}.hdr p{margin:0;font-size:9pt;opacity:.85;}
+    table{width:calc(100%-56px);margin:14px 28px;border-collapse:collapse;font-size:9pt;}
+    th{background:#1b2a4a;color:#fff;padding:7px 8px;text-align:left;font-size:8pt;}
+    td{padding:6px 8px;border-bottom:1px solid #eef;vertical-align:top;}
+    tr:nth-child(even) td{background:#f9fbfc;}
+    .ftr{padding:12px 28px 20px;font-size:8pt;color:#888;display:flex;justify-content:space-between;border-top:2px solid #0e7c7b;margin-top:12px;}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style></head><body>
+  <div class="hdr">
+    <h1>${inst}</h1>
+    <p>Laporan Notifikasi Ketidakhadiran · Dicetak: ${now.toLocaleString('ms-MY')}</p>
+  </div>
+  <table>
+    <tr><th>#</th><th>Pelajar</th><th>Aktiviti/Program</th><th>Tarikh</th><th>Tahap</th><th>Mesej Peringatan</th><th>Diakui</th></tr>
+    ${rows}
+  </table>
+  <div class="ftr">
+    <span>EduTrack — Sistem Pengurusan Kehadiran</span>
+    <span>Jumlah: ${notifs.length} notifikasi · Belum Diakui: ${notifs.filter(n=>n.akui!=='Ya').length}</span>
+  </div>
+  </body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
 }
 
 function openBeh(mat){const u=(DB.get('users')||[]).find(x=>x.matric===mat);if(!u)return;document.getElementById('m-beh-ttl').textContent=`Sahsiah — ${u.name.split(' ')[0]}`;document.getElementById('beh-mat').value=mat;document.getElementById('beh-score').value=u.behavior?.score??100;document.getElementById('beh-note').value=u.behavior?.note||'';_bTags=[...(u.behavior?.tags||[])];renderBTags();openM('m-beh');}
